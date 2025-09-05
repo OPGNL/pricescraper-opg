@@ -1,0 +1,37 @@
+# IDEs
+.zed/
+.vscode/
+.idea/
+.pycharm/
+
+# Virtual Environment
+.python-version
+.venv
+.env
+.venv/
+.ropeproject/
+
+# Git
+.gitignore
+.gitattributes
+.git/
+.github/
+
+# Docker
+docker-compose.yml
+Dockerfile
+Dockerfile.prod
+.docker
+.dockerignore
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+
+# C extensions
+*.so
+
+# Project specific
+README.md
+
+node_modules
