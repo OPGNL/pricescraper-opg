@@ -50,23 +50,25 @@ async def root(request: Request):
 async def analyze_url(input: URLInput):
     """
     Analyseert een URL om dimensie velden te vinden
-    
+
     - **url**: De URL van de productpagina om te analyseren
-    
+
     Returns:
         - De gevonden dimensie velden (dikte, lengte, breedte, prijs)
     """
     try:
         scraper = MaterialScraper()
         results = await scraper.analyze_form_fields(input.url)
-        
+
+
         return AnalyzeResponse(
             url=input.url,
-            dimension_fields=results['dimension_fields']
+            dimension_fields=results
         )
     except Exception as e:
+        print(f"Error analyzing URL: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080) 
+    uvicorn.run(app, host="0.0.0.0", port=8080)
