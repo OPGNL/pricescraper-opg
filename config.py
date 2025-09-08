@@ -12,7 +12,7 @@ HEADLESS = IS_PRODUCTION  # True in production, False in development
 
 # Database settings
 USE_POSTGRES_LOCALLY = os.getenv('USE_POSTGRES_LOCALLY', 'true').lower() == 'true'
-LOCAL_DATABASE_URL = "postgresql://localhost/competitor_price_watcher" if USE_POSTGRES_LOCALLY else "sqlite:///./competitor_price_watcher.db" 
+LOCAL_DATABASE_URL = "postgresql://postgres:password@postgres:5432/competitor_price_watcher" if USE_POSTGRES_LOCALLY else "sqlite:///./competitor_price_watcher.db"
 
 Base = declarative_base()
 
@@ -37,4 +37,4 @@ class Settings(Base):
         else:
             setting = cls(key=key, value=value)
             session.add(setting)
-        session.commit() 
+        session.commit()
