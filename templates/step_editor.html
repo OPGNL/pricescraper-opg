@@ -1,0 +1,2197 @@
+{% extends "base.html" %}
+
+{% block title %}Step Editor{% endblock %}
+
+{% block content %}
+<!-- Additional hidden element to store domain config data safely -->
+<div id="domain-config-data" style="display: none;" data-domain-configs='{{ domain_configs | tojson | safe }}'></div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-6">
+        <div class="flex justify-between items-center">
+            <h2 class="text-2xl font-bold text-gray-900">Step Editor</h2>
+            <button id="loadConfigBtn" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Load Config
+            </button>
+        </div>
+        <p class="mt-2 text-gray-600">Create and edit configuration steps with a visual interface.</p>
+    </div>
+
+    <!-- Current Configuration Info -->
+    <div class="flex justify-between items-center mb-4">
+        <div class="flex-1">
+            <div id="currentConfigInfo" class="hidden">
+                <div class="bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-circle-info h-4 w-4 text-blue-500"></i>
+                        <div class="flex items-center">
+                            <span class="text-xs text-blue-900">Currently editing:</span>
+                            <span class="text-xs font-medium text-blue-900 ml-1">
+                                Domain: <span id="currentDomain" class="font-mono text-xs">-</span>
+                                | Category: <span id="currentCategory" class="font-mono text-xs">-</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ml-4 flex gap-2">
+            <button id="saveCurrentConfigBtn" class="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                Save Current Configuration
+            </button>
+            <button id="saveConfigBtn" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                Save Configuration
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Left side: Step Editor -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Steps</h3>
+                <div class="flex gap-2">
+                    <button id="addStepBtn" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                        Add Step
+                    </button>
+                    <button id="clearStepsBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step list -->
+            <div id="stepList" class="space-y-3">
+                <!-- Steps will be added here dynamically -->
+            </div>
+        </div>
+
+        <!-- Right side: JSON Preview -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Configuration Preview</h3>
+                <div class="flex gap-2">
+                    <button id="copyJsonBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-copy h-4 w-4 mr-2"></i>
+                        Copy JSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- JSON preview -->
+            <pre id="jsonPreview" class="bg-gray-50 p-4 rounded-md font-mono text-sm overflow-auto max-h-[calc(100vh-300px)]"></pre>
+        </div>
+    </div>
+</div>
+
+<!-- Add Step Modal -->
+<div id="addStepModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden overflow-y-auto">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md my-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Add Step</h3>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <form id="addStepForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="stepType" class="block text-sm font-medium text-gray-700 mb-1">Step Type</label>
+                            <select id="stepType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="select">Select</option>
+                                <option value="input">Input</option>
+                                <option value="click">Click</option>
+                                <option value="wait">Wait</option>
+                                <option value="blur">Blur</option>
+                                <option value="captcha">Captcha</option>
+                                <option value="modify_element">Modify Element</option>
+                                <option value="read_price">Read Price</option>
+                                <option value="navigate">Navigate</option>
+                            </select>
+                        </div>
+
+                        <!-- Dynamic fields will be added here based on step type -->
+                        <div id="stepFields"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2 sticky bottom-0">
+                <button id="cancelStepBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Cancel
+                </button>
+                <button id="saveStepBtn" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Add Step
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Configuration Modal -->
+<div id="loadConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden overflow-y-auto">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md my-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Load Configuration</h3>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <form id="loadConfigForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="loadDomain" class="block text-sm font-medium text-gray-700 mb-1">Select Domain</label>
+                            <select id="loadDomain" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">Select a domain...</option>
+                                {% set grouped_domains = {} %}
+                                {% for domain, config in domain_configs.items() %}
+                                    {% set extension = '.' + domain.split('.')[-1] %}
+                                    {% if extension not in grouped_domains %}
+                                        {% set _ = grouped_domains.update({extension: []}) %}
+                                    {% endif %}
+                                    {% set _ = grouped_domains[extension].append(domain) %}
+                                {% endfor %}
+                                
+                                {% for extension in grouped_domains.keys()|sort %}
+                                    <optgroup label="{{ extension }} domains ({{ grouped_domains[extension]|length }})">
+                                        {% for domain in grouped_domains[extension]|sort %}
+                                        <option value="{{ domain }}">{{ domain }}</option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="loadCategory" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="loadCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="square_meter_price">Square Meter Price</option>
+                                <option value="shipping">Shipping</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2 sticky bottom-0">
+                <button id="cancelLoadBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Cancel
+                </button>
+                <button id="confirmLoadBtn" class="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Load
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Configuration Modal -->
+<div id="saveConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden overflow-y-auto">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md my-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Save Configuration</h3>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <form id="saveConfigForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="domainName" class="block text-sm font-medium text-gray-700 mb-1">Domain Name</label>
+                            <div class="flex gap-2">
+                                <select id="existingDomain" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    <option value="">Create new domain...</option>
+                                    {% set grouped_domains = {} %}
+                                    {% for domain, config in domain_configs.items() %}
+                                        {% set extension = '.' + domain.split('.')[-1] %}
+                                        {% if extension not in grouped_domains %}
+                                            {% set _ = grouped_domains.update({extension: []}) %}
+                                        {% endif %}
+                                        {% set _ = grouped_domains[extension].append(domain) %}
+                                    {% endfor %}
+                                    
+                                    {% for extension in grouped_domains.keys()|sort %}
+                                        <optgroup label="{{ extension }} domains ({{ grouped_domains[extension]|length }})">
+                                            {% for domain in grouped_domains[extension]|sort %}
+                                            <option value="{{ domain }}">{{ domain }}</option>
+                                            {% endfor %}
+                                        </optgroup>
+                                    {% endfor %}
+                                </select>
+                                <input type="text" id="domainName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="example.com">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="configCategory" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="configCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="square_meter_price">Square Meter Price</option>
+                                <option value="shipping">Shipping</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2 sticky bottom-0">
+                <button id="cancelSaveBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Cancel
+                </button>
+                <button id="confirmSaveBtn" class="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/notifications.js"></script>
+<script>
+// Initialize variables
+let domainConfigs = {};
+let steps = [];
+let editingIndex = -1;
+
+// Step type definitions
+const stepFields = {
+    select: [
+        {
+            name: 'select_method',
+            label: 'Selection Method',
+            type: 'radio',
+            options: [
+                { value: 'selector', label: 'Via CSS selector' },
+                { value: 'index', label: 'Via index (position)' }
+            ],
+            default: 'selector',
+            help: 'Choose how to select an element: via a CSS/XPath selector or via position (index)'
+        },
+        {
+            name: 'selector',
+            label: 'Selector',
+            type: 'text',
+            required: true,
+            help: 'Enter a CSS selector (e.g., #select-id, .class-name) or XPath (e.g., //select[@name="options"])',
+            condition: { field: 'select_method', value: 'selector' }
+        },
+        {
+            name: 'select_element',
+            label: 'Dropdown Selector',
+            type: 'text',
+            required: true,
+            help: 'CSS selector for the dropdown element you want to select from',
+            condition: { field: 'select_method', value: 'index' }
+        },
+        {
+            name: 'option_index',
+            label: 'Option Index',
+            type: 'number',
+            required: true,
+            min: 0,
+            help: 'The index (position) of the option you want to select (0 = first option)',
+            condition: { field: 'select_method', value: 'index' }
+        },
+        {
+            name: 'value',
+            label: 'Value',
+            type: 'value_with_vars',
+            required: true,
+            variables: ['thickness', 'width', 'length', 'quantity'],
+            help: 'The value to select. You can use variables like {thickness} that will be replaced with actual values',
+            condition: { field: 'select_method', value: 'selector' }
+        },
+        { 
+            name: 'unit', 
+            type: 'select', 
+            label: 'Unit', 
+            options: ['mm', 'cm'], 
+            required: false,
+            help: 'The unit of measurement for the value. Will convert values automatically',
+            condition: { field: 'select_method', value: 'selector' }
+        },
+        { 
+            name: 'option_container', 
+            type: 'text', 
+            label: 'Option Container', 
+            required: false,
+            help: 'CSS selector for custom dropdown container. Only needed for non-standard dropdowns',
+            condition: { field: 'select_method', value: 'selector' }
+        },
+        { 
+            name: 'option_selector', 
+            type: 'text', 
+            label: 'Option Selector', 
+            required: false,
+            help: 'CSS selector pattern for options within a custom dropdown. Use {value} as placeholder',
+            condition: { field: 'select_method', value: 'selector' }
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if this step fails'
+        }
+    ],
+    input: [
+        {
+            name: 'input_method',
+            label: 'Input Method',
+            type: 'radio',
+            options: [
+                { value: 'fixed', label: 'Fixed value' },
+                { value: 'randomize', label: 'Random value (randomize: true)' }
+            ],
+            default: 'fixed',
+            help: 'Choose whether to enter a fixed value or generate a random value'
+        },
+        {
+            name: 'selector',
+            label: 'Selector',
+            type: 'text',
+            required: true,
+            help: 'Enter a CSS selector (e.g., #input-id, .class-name) or XPath (e.g., //input[@name="quantity"])'
+        },
+        {
+            name: 'value',
+            label: 'Value',
+            type: 'value_with_vars',
+            required: true,
+            variables: ['thickness', 'width', 'length', 'quantity'],
+            help: 'The value to input. You can use variables like {thickness} that will be replaced with actual values',
+            condition: { field: 'input_method', value: 'fixed' }
+        },
+        {
+            name: 'country',
+            label: 'Country',
+            type: 'select',
+            options: ['Netherlands', 'Germany', 'France', 'United Kingdom', 'Italy', 'Spain', 'Poland', 'Austria', 'Belgium'],
+            required: true,
+            help: 'Select the country to generate appropriate random values for',
+            condition: { field: 'input_method', value: 'randomize' }
+        },
+        {
+            name: 'random_type',
+            label: 'Random Value Type',
+            type: 'select',
+            options: [
+                'First Name',
+                'Last Name',
+                'Email Address',
+                'Password',
+                'Generic Term',
+                'Street',
+                'House Number',
+                'Postal Code',
+                'City',
+                'Phone Number'
+            ],
+            required: true,
+            help: 'Choose which type of random value should be generated',
+            condition: { field: 'input_method', value: 'randomize' }
+        },
+        {
+            name: 'password_min_length',
+            label: 'Minimum Password Length',
+            type: 'number',
+            min: 8,
+            max: 32,
+            default: 12,
+            required: false,
+            help: 'Minimum length of the generated password (8-32 characters)',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_max_length',
+            label: 'Maximum Password Length',
+            type: 'number',
+            min: 8,
+            max: 32,
+            default: 16,
+            required: false,
+            help: 'Maximum length of the generated password (8-32 characters)',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_include_uppercase',
+            label: 'Include Uppercase Letters',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Add uppercase letters (A-Z) to the password',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_include_numbers',
+            label: 'Include Numbers',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Add numbers (0-9) to the password',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_include_special',
+            label: 'Include Special Characters',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Add special characters (!@#$%^&*) to the password',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        { 
+            name: 'unit', 
+            type: 'select', 
+            label: 'Unit', 
+            options: ['mm', 'cm'], 
+            required: false,
+            help: 'The unit of measurement for the value. Will convert values automatically',
+            condition: { field: 'input_method', value: 'fixed' }
+        },
+        { 
+            name: 'clear_first', 
+            type: 'checkbox', 
+            label: 'Clear First', 
+            required: false,
+            help: 'Whether to clear the input field before entering the new value'
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if this step fails (e.g., element not found)'
+        }
+    ],
+    click: [
+        {
+            name: 'selector',
+            label: 'Selector',
+            type: 'text',
+            required: true,
+            help: 'Enter a CSS selector (e.g., #button-id, .class-name) or XPath (e.g., //button[contains(text(),"Add")])'
+        },
+        {
+            name: 'description',
+            label: 'Description',
+            type: 'text',
+            required: false,
+            help: 'Optional description of what this click is doing'
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if this step fails (e.g., element not found)'
+        }
+    ],
+    wait: [
+        { 
+            name: 'duration', 
+            type: 'select', 
+            label: 'Duration', 
+            options: ['short', 'default', 'long', 'longer'], 
+            required: true,
+            help: 'How long to wait: short (0.5s), default (1s), long (1.5s), longer (3s)'
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if this step fails'
+        }
+    ],
+    blur: [
+        {
+            name: 'selector',
+            label: 'Selector',
+            type: 'text',
+            required: true,
+            help: 'Enter a CSS selector for the field to blur (unfocus). Used after entering values when needed'
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if this step fails (e.g., element not found)'
+        }
+    ],
+    modify_element: [
+        {
+            name: 'selector',
+            label: 'Selector',
+            type: 'text',
+            required: true,
+            help: 'Enter a CSS selector for the element to modify'
+        },
+        {
+            name: 'add_class',
+            label: 'Add Class',
+            type: 'text',
+            required: false,
+            help: 'Optional: CSS class to add to the element'
+        },
+        {
+            name: 'value',
+            label: 'Set Value',
+            type: 'value_with_vars',
+            required: false,
+            variables: ['thickness', 'width', 'length', 'quantity'],
+            help: 'Optional: Set the value of the element. You can use variables like {thickness}'
+        },
+        {
+            name: 'script',
+            label: 'Custom JavaScript',
+            type: 'text',
+            required: false,
+            help: 'Optional: Custom JavaScript to run on the element'
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if this step fails (e.g., element not found)'
+        }
+    ],
+    read_price: [
+        { 
+            name: 'selector', 
+            type: 'text', 
+            label: 'Selector', 
+            required: true,
+            help: 'Selector for the price element. Can use CSS (#price), XPath (//span[@class="price"]), or text content'
+        },
+        { 
+            name: 'includes_vat', 
+            type: 'checkbox', 
+            label: 'Includes VAT', 
+            required: false,
+            help: 'Check if the price shown includes VAT. Will be used for correct price calculations'
+        },
+        {
+            name: 'calculation',
+            type: 'value_with_vars',
+            label: 'Calculation',
+            required: false,
+            variables: ['price', 'quantity', 'thickness', 'width', 'length'],
+            help: 'Optional calculation to perform on the price (e.g. "price * 1.21" for adding 21% VAT or "price / {quantity}" for price per piece)'
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if price cannot be read. Note: will return price as 0.00'
+        }
+    ],
+    navigate: [
+        {
+            name: 'url',
+            label: 'URL',
+            type: 'text',
+            required: true,
+            help: 'Enter the URL to navigate to. Can be relative (e.g., /products) or absolute (e.g., https://example.com)'
+        },
+        {
+            name: 'wait_for_load',
+            label: 'Wait for Load',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Wait for the page to fully load after navigation'
+        },
+        {
+            name: 'timeout',
+            label: 'Timeout (seconds)',
+            type: 'number',
+            min: 5,
+            max: 60,
+            default: 30,
+            required: false,
+            help: 'Maximum time to wait for the page to load',
+            condition: { field: 'wait_for_load', value: true }
+        },
+        { 
+            name: 'continue_on_error', 
+            type: 'checkbox', 
+            label: 'Continue on Error', 
+            required: false,
+            help: 'Continue with next steps if navigation fails'
+        }
+    ],
+    captcha: [
+        {
+            name: 'solving_method',
+            label: 'Solving Method',
+            type: 'radio',
+            options: [
+                { value: 'Manual', label: 'Manual solving' },
+                { value: 'External Service (2Captcha)', label: 'External Service (2Captcha)' }
+            ],
+            default: 'Manual',
+            help: 'Choose how to solve the captcha: manually or using 2Captcha service'
+        },
+        {
+            name: 'captcha_type',
+            label: 'Captcha Type',
+            type: 'select',
+            options: ['checkbox', 'recaptcha_v2'],
+            default: 'checkbox',
+            required: true,
+            help: 'Select the type of captcha to handle'
+        },
+        {
+            name: 'selector',
+            label: 'Captcha Element Selector',
+            type: 'text',
+            required: false,
+            help: 'CSS selector for the captcha element (optional)'
+        },
+        {
+            name: 'frame_selector',
+            label: 'Captcha Frame Selector',
+            type: 'text',
+            required: false,
+            help: 'CSS selector for the captcha iframe (only for reCAPTCHA v2)'
+        },
+        {
+            name: 'skip_on_failure',
+            label: 'Skip on Failure',
+            type: 'checkbox',
+            default: true,
+            help: 'Continue with next steps if captcha handling fails'
+        }
+    ],
+};
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Load domain configurations from the hidden element
+    try {
+        const configDataElement = document.getElementById('domain-config-data');
+        if (configDataElement && configDataElement.dataset.domainConfigs) {
+            domainConfigs = JSON.parse(configDataElement.dataset.domainConfigs);
+            console.log("Domain configs loaded successfully");
+        } else {
+            console.warn("Domain config element or data not found");
+        }
+    } catch (error) {
+        console.error("Error parsing domain configs:", error);
+    }
+
+    // Button event listeners
+    document.getElementById('loadConfigBtn').addEventListener('click', showLoadConfigModal);
+    document.getElementById('addStepBtn').addEventListener('click', showAddStepModal);
+    document.getElementById('clearStepsBtn').addEventListener('click', clearSteps);
+    document.getElementById('copyJsonBtn').addEventListener('click', copyJsonToClipboard);
+    document.getElementById('saveConfigBtn').addEventListener('click', showSaveConfigModal);
+    document.getElementById('saveCurrentConfigBtn').addEventListener('click', saveCurrentConfiguration);
+    document.getElementById('cancelStepBtn').addEventListener('click', hideAddStepModal);
+    document.getElementById('saveStepBtn').addEventListener('click', saveStep);
+    document.getElementById('cancelSaveBtn').addEventListener('click', hideSaveConfigModal);
+    document.getElementById('confirmSaveBtn').addEventListener('click', saveConfiguration);
+    document.getElementById('cancelLoadBtn').addEventListener('click', hideLoadConfigModal);
+    document.getElementById('confirmLoadBtn').addEventListener('click', loadConfiguration);
+
+    // Domain selection handlers
+    document.getElementById('existingDomain').addEventListener('change', handleExistingDomainChange);
+
+    // Step type change handler
+    document.getElementById('stepType').addEventListener('change', updateStepFields);
+
+    // Initial update
+    updateStepFields();
+    updateJsonPreview();
+    
+    // Automatisch alle modals configureren om Enter-toets te ondersteunen
+    setupAllModals();
+});
+
+/**
+ * Koppelt de Enter-toets aan de primaire (meestal blauwe) knop in modals
+ */
+function setupAllModals() {
+    // Verzamel alle modals in de applicatie
+    const modals = document.querySelectorAll('div[id$="Modal"]');
+    
+    modals.forEach(modal => {
+        const modalId = modal.id;
+        
+        // Zoek de primaire knop in deze modal (meestal de blauwe button)
+        // We kijken eerst naar een .btn-primary of bg-blue klasse, dan naar een knop met een blauwe achtergrond
+        // of als fallback de laatste knop in de footer (meestal de bevestigingsknop)
+        const modalButtons = modal.querySelectorAll('button');
+        let primaryButton = null;
+        
+        // Zoek eerst een knop met primary of blue class
+        for (const button of modalButtons) {
+            if (button.classList.contains('btn-primary') || 
+                button.classList.contains('bg-blue-600') || 
+                button.classList.contains('bg-blue-700')) {
+                primaryButton = button;
+                break;
+            }
+        }
+        
+        // Als fallback, neem de laatste knop in de footer als primaire knop
+        if (!primaryButton && modalButtons.length > 0) {
+            // Check voor knoppen in de footer area (meestal onderaan)
+            const footerButtons = modal.querySelectorAll('.px-6.py-4.bg-gray-50 button');
+            if (footerButtons.length > 0) {
+                primaryButton = footerButtons[footerButtons.length - 1];
+            } else {
+                // Als laatste optie, neem gewoon de laatste knop
+                primaryButton = modalButtons[modalButtons.length - 1];
+            }
+        }
+        
+        if (primaryButton) {
+            // Stel de enter-toets in voor deze modal met het DOM element
+            setupModalEnterKey(modal, primaryButton);
+        }
+    });
+}
+
+/**
+ * Koppelt de Enter-toets aan een specifieke knop in een modal
+ */
+function setupModalEnterKey(modal, primaryButton) {
+    // Als er geen geldige modal of button is, stop dan
+    if (!modal || !(modal instanceof Element) || !primaryButton || !(primaryButton instanceof Element)) {
+        console.warn('Invalid modal or button element provided');
+        return;
+    }
+    
+    // Verwijder eerst eventuele bestaande handlers
+    if (modal._keydownHandler) {
+        modal.removeEventListener('keydown', modal._keydownHandler);
+    }
+    
+    // Maak en sla de handler op zodat deze later kan worden verwijderd
+    modal._keydownHandler = function(e) {
+        if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+            // Voorkom dat de Enter-toets in textarea's de form submit trigger
+            if (e.target.tagName.toLowerCase() === 'textarea') return;
+            
+            // Voorkom standaard form submit gedrag
+            e.preventDefault();
+            
+            // Trigger klik op de primaire knop
+            primaryButton.click();
+        }
+    };
+    
+    // Voeg event listener toe
+    modal.addEventListener('keydown', modal._keydownHandler);
+}
+
+function showAddStepModal() {
+    const modal = document.getElementById('addStepModal');
+    const saveButton = document.getElementById('saveStepBtn');
+    modal.classList.remove('hidden');
+    editingIndex = -1;
+    saveButton.textContent = 'Add Step';
+    updateStepFields();
+}
+
+function hideAddStepModal() {
+    document.getElementById('addStepModal').classList.add('hidden');
+    document.getElementById('addStepForm').reset();
+}
+
+function showSaveConfigModal() {
+    const modal = document.getElementById('saveConfigModal');
+    const confirmButton = document.getElementById('confirmSaveBtn');
+    modal.classList.remove('hidden');
+    
+    // Koppel Enter-toets aan primaire knop met DOM elementen
+    setupModalEnterKey(modal, confirmButton);
+}
+
+function hideSaveConfigModal() {
+    document.getElementById('saveConfigModal').classList.add('hidden');
+    document.getElementById('saveConfigForm').reset();
+}
+
+function showLoadConfigModal() {
+    const modal = document.getElementById('loadConfigModal');
+    const confirmButton = document.getElementById('confirmLoadBtn');
+    modal.classList.remove('hidden');
+    
+    // Koppel Enter-toets aan primaire knop met DOM elementen
+    setupModalEnterKey(modal, confirmButton);
+}
+
+function hideLoadConfigModal() {
+    document.getElementById('loadConfigModal').classList.add('hidden');
+    document.getElementById('loadConfigForm').reset();
+}
+
+function handleExistingDomainChange(e) {
+    const domainInput = document.getElementById('domainName');
+    if (e.target.value) {
+        domainInput.value = e.target.value;
+        domainInput.disabled = true;
+    } else {
+        domainInput.value = '';
+        domainInput.disabled = false;
+    }
+}
+
+function updateStepFields() {
+    const stepType = document.getElementById('stepType').value;
+    const fieldsContainer = document.getElementById('stepFields');
+    fieldsContainer.innerHTML = '';
+    
+    // Map om alle veldwaarden bij te houden voor conditionele velden
+    const fieldValues = {};
+
+    // Eerst alle velden verwerken die geen voorwaarde hebben
+    stepFields[stepType].filter(field => !field.condition).forEach(field => {
+        createField(field, fieldsContainer, fieldValues);
+    });
+    
+    // Als we een select type hebben met radio buttons, zorgen dat de juiste waarde wordt ingesteld
+    if (stepType === 'select') {
+        // Wacht even totdat de velden zijn gemaakt
+        setTimeout(() => {
+            // Controleer of we select_method radio buttons hebben
+            const selectorRadio = document.getElementById('select_method_selector');
+            const indexRadio = document.getElementById('select_method_index');
+            
+            if (selectorRadio && indexRadio) {
+                // Zorg ervoor dat minstens één van de radio buttons is geselecteerd
+                if (!selectorRadio.checked && !indexRadio.checked) {
+                    selectorRadio.checked = true;
+                }
+                
+                // Update de fieldValues map met de geselecteerde waarde
+                fieldValues['select_method'] = selectorRadio.checked ? 'selector' : 'index';
+                
+                // Verwerk de conditionele velden op basis van de selectie
+                updateConditionalFields(stepType, fieldValues);
+                
+                // Voeg event listeners toe aan de radio buttons
+                selectorRadio.addEventListener('change', () => {
+                    if (selectorRadio.checked) {
+                        fieldValues['select_method'] = 'selector';
+                        updateConditionalFields(stepType, fieldValues);
+                    }
+                });
+                
+                indexRadio.addEventListener('change', () => {
+                    if (indexRadio.checked) {
+                        fieldValues['select_method'] = 'index';
+                        updateConditionalFields(stepType, fieldValues);
+                    }
+                });
+            }
+        }, 50);
+    } else if (stepType === 'input') {
+        // Als we een input type hebben met radio buttons, zorgen dat de juiste waarde wordt ingesteld
+        setTimeout(() => {
+            // Controleer of we input_method radio buttons hebben
+            const fixedRadio = document.getElementById('input_method_fixed');
+            const randomizeRadio = document.getElementById('input_method_randomize');
+            
+            if (fixedRadio && randomizeRadio) {
+                // Zorg ervoor dat minstens één van de radio buttons is geselecteerd
+                if (!fixedRadio.checked && !randomizeRadio.checked) {
+                    fixedRadio.checked = true;
+                }
+                
+                // Update de fieldValues map met de geselecteerde waarde
+                fieldValues['input_method'] = fixedRadio.checked ? 'fixed' : 'randomize';
+                
+                // Verwerk de conditionele velden op basis van de selectie
+                updateConditionalFields(stepType, fieldValues);
+                
+                // Voeg event listeners toe aan de radio buttons
+                fixedRadio.addEventListener('change', () => {
+                    if (fixedRadio.checked) {
+                        fieldValues['input_method'] = 'fixed';
+                        updateConditionalFields(stepType, fieldValues);
+                    }
+                });
+                
+                randomizeRadio.addEventListener('change', () => {
+                    if (randomizeRadio.checked) {
+                        fieldValues['input_method'] = 'randomize';
+                        updateConditionalFields(stepType, fieldValues);
+                        
+                        // Stel event listeners in voor conditionele velden (inclusief random_type)
+                        setupConditionalFieldListeners(stepType, fieldValues);
+                    }
+                });
+            }
+        }, 50);
+    } else {
+        // Voor andere types, verwerk conditionele velden meteen
+        updateFieldValues(stepType, fieldValues);
+        
+        // Verwerk conditionele velden op basis van initiële waarden
+        stepFields[stepType].filter(field => field.condition).forEach(field => {
+            const condition = field.condition;
+            const dependentValue = fieldValues[condition.field];
+            
+            if (dependentValue === condition.value) {
+                createField(field, fieldsContainer, fieldValues);
+            }
+        });
+        
+        // Stel event listeners in voor conditionele velden
+        setupConditionalFieldListeners(stepType, fieldValues);
+    }
+}
+
+// Helper functie om conditionele velden bij te werken wanneer afhankelijke velden wijzigen
+function updateConditionalFields(stepType, fieldValues) {
+    const fieldsContainer = document.getElementById('stepFields');
+    
+    // Update de waarden map
+    updateFieldValues(stepType, fieldValues);
+    
+    // Alle velden met condities opnieuw evalueren
+    stepFields[stepType].filter(field => field.condition).forEach(field => {
+        const condition = field.condition;
+        const dependentValue = fieldValues[condition.field];
+        const existingField = document.querySelector(`.field-container[data-field="${field.name}"]`);
+        
+        // Controleer of het veld moet worden getoond
+        const shouldShow = dependentValue === condition.value;
+        
+        if (shouldShow) {
+            // Toon het veld als het nog niet zichtbaar is
+            if (!existingField) {
+                createField(field, fieldsContainer, fieldValues);
+            }
+        } else {
+            // Verberg het veld als het zichtbaar is
+            if (existingField) {
+                existingField.remove();
+            }
+        }
+    });
+}
+
+// Helper functie om de huidige waarden van alle velden bij te werken
+function updateFieldValues(stepType, fieldValues) {
+    stepFields[stepType].forEach(field => {
+        if (field.type === 'radio') {
+            const selectedRadio = document.querySelector(`input[name="${field.name}"]:checked`);
+            if (selectedRadio) {
+                fieldValues[field.name] = selectedRadio.value;
+            } else {
+                fieldValues[field.name] = field.default || '';
+            }
+        } else {
+            const element = document.getElementById(field.name);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    fieldValues[field.name] = element.checked;
+                } else {
+                    fieldValues[field.name] = element.value;
+                }
+            }
+        }
+    });
+}
+
+// Helper functie om een enkel veld te maken en toe te voegen aan de container
+function createField(field, container, fieldValues) {
+    const div = document.createElement('div');
+    div.className = 'mb-4 field-container';
+    div.dataset.field = field.name;
+
+    // Voor checkboxes maken we een aangepaste layout
+    if (field.type === 'checkbox') {
+        // Maak een wrapper voor de checkbox met flexbox
+        const checkboxWrapper = document.createElement('div');
+        checkboxWrapper.className = 'flex items-center gap-2 mt-1';
+        
+        // Maak de checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = field.name;
+        checkbox.name = field.name;
+        checkbox.className = 'rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500';
+        checkbox.required = field.required;
+        
+        // Maak het label dat rechts van de checkbox staat
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.htmlFor = field.name;
+        checkboxLabel.className = 'text-sm text-gray-700';
+        checkboxLabel.textContent = field.label;
+        
+        // Voeg alles toe aan de container
+        checkboxWrapper.appendChild(checkbox);
+        checkboxWrapper.appendChild(checkboxLabel);
+        div.appendChild(checkboxWrapper);
+        
+        // Sla de waarde op
+        fieldValues[field.name] = checkbox.checked;
+    } else {
+        // Voor alle andere veldtypes, voeg het label toe boven het veld
+        const label = document.createElement('label');
+        label.className = 'block text-sm font-medium text-gray-700 mb-1';
+        label.textContent = field.label;
+        div.appendChild(label);
+
+        if (field.type === 'radio') {
+            const radioContainer = document.createElement('div');
+            radioContainer.className = 'mt-1 space-y-2';
+            
+            field.options.forEach((option, index) => {
+                const radioWrap = document.createElement('div');
+                radioWrap.className = 'flex items-center';
+                
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.id = `${field.name}_${option.value}`;
+                radio.name = field.name;
+                radio.value = option.value;
+                radio.className = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300';
+                
+                // Stel de default waarde in
+                if ((index === 0 && !field.default) || option.value === field.default) {
+                    radio.checked = true;
+                    fieldValues[field.name] = option.value;
+                }
+                
+                const radioLabel = document.createElement('label');
+                radioLabel.htmlFor = `${field.name}_${option.value}`;
+                radioLabel.className = 'ml-2 block text-sm text-gray-700';
+                radioLabel.textContent = option.label;
+                
+                radioWrap.appendChild(radio);
+                radioWrap.appendChild(radioLabel);
+                radioContainer.appendChild(radioWrap);
+            });
+            
+            div.appendChild(radioContainer);
+        } else if (field.type === 'value_with_vars') {
+            // Create a container for the value input and variable selector
+            const container = document.createElement('div');
+            container.className = 'flex gap-2';
+    
+            // Create the value input
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.id = field.name;
+            valueInput.name = field.name;
+            valueInput.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            valueInput.required = field.required;
+    
+            // Create the variable selector
+            const varSelect = document.createElement('select');
+            varSelect.className = 'mt-1 block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            varSelect.innerHTML = `
+                <option value="">Insert variable...</option>
+                ${field.variables.map(v => `<option value="{${v}}">{${v}}</option>`).join('')}
+            `;
+            varSelect.addEventListener('change', function() {
+                if (this.value) {
+                    valueInput.value = this.value;
+                    fieldValues[field.name] = this.value;
+                    this.value = ''; // Reset dropdown after selection
+                }
+            });
+    
+            container.appendChild(valueInput);
+            container.appendChild(varSelect);
+            div.appendChild(container);
+        } else if (field.type === 'select') {
+            const select = document.createElement('select');
+            select.id = field.name;
+            select.name = field.name;
+            select.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            select.required = field.required;
+            
+            field.options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.textContent = option;
+                select.appendChild(opt);
+            });
+            
+            div.appendChild(select);
+            fieldValues[field.name] = select.value;
+        } else if (field.type === 'number') {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.id = field.name;
+            input.name = field.name;
+            input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            input.required = field.required;
+            
+            if (field.min !== undefined) input.min = field.min;
+            if (field.max !== undefined) input.max = field.max;
+            if (field.step !== undefined) input.step = field.step;
+            
+            div.appendChild(input);
+            fieldValues[field.name] = input.value;
+        } else {
+            const input = document.createElement('input');
+            input.type = field.type;
+            input.id = field.name;
+            input.name = field.name;
+            input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            input.required = field.required;
+            
+            div.appendChild(input);
+            fieldValues[field.name] = input.value;
+        }
+    }
+
+    // Add help text if available
+    if (field.help) {
+        const helpContainer = document.createElement('div');
+        helpContainer.className = 'mt-2 flex items-start gap-1';
+        
+        const infoIcon = document.createElement('div');
+        infoIcon.innerHTML = `<i class="fas fa-circle-info h-3 w-3 text-gray-400 mt-1"></i>`;
+        
+        const helpText = document.createElement('p');
+        helpText.className = 'text-xs text-gray-500 flex-1';
+        helpText.textContent = field.help;
+        
+        helpContainer.appendChild(infoIcon);
+        helpContainer.appendChild(helpText);
+        div.appendChild(helpContainer);
+    }
+
+    container.appendChild(div);
+}
+
+function saveStep() {
+    const form = document.getElementById('addStepForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const stepType = document.getElementById('stepType').value;
+    const step = { type: stepType };
+    
+    // Eerst alle zichtbare velden vinden
+    const visibleFields = document.querySelectorAll('.field-container');
+    const visibleFieldNames = Array.from(visibleFields).map(el => el.dataset.field);
+    
+    // Verzamel alle waarden van relevante velden
+    stepFields[stepType].forEach(field => {
+        // Controleer of dit veld zichtbaar is, behalve voor radio buttons (die hebben een speciale behandeling nodig)
+        if (!visibleFieldNames.includes(field.name) && field.type !== 'radio') {
+            return;
+        }
+        
+        // Voor radio buttons, haal de geselecteerde waarde op
+        if (field.type === 'radio') {
+            const selectedRadio = document.querySelector(`input[name="${field.name}"]:checked`);
+            if (selectedRadio) {
+                step[field.name] = selectedRadio.value;
+            } else if (field.default) {
+                step[field.name] = field.default;
+            }
+            return;
+        }
+        
+        const element = document.getElementById(field.name);
+        if (!element) return;
+        
+        if (element.type === 'checkbox') {
+            step[field.name] = element.checked;
+        } else {
+            const value = element.value.trim();
+            if (value) {
+                step[field.name] = value;
+            }
+        }
+    });
+    
+    // Speciale verwerking voor index-gebaseerde select
+    if (stepType === 'select' && step.select_method === 'index') {
+        // Markeer expliciet dat dit een index-gebaseerde selectie is
+        step.use_index = true;
+        
+        // Rename voor samenhang
+        if (step.select_element) {
+            step.selector = step.select_element;
+            delete step.select_element;
+        }
+        
+        // Zorg ervoor dat option_index altijd aanwezig is en een string/nummer is
+        if (!step.option_index) {
+            step.option_index = "0";
+        }
+        
+        // Voor index-gebaseerde selectie gebruiken we een speciale waarde die niet als getal wordt geïnterpreteerd
+        // We formatteren het als 'index:{nummer}' zodat de backend het speciaal kan behandelen
+        step.value = `index:${step.option_index}`;
+        
+        // Deze velden zijn niet nodig voor index-gebaseerde selectie
+        delete step.unit;
+        delete step.option_container;
+        delete step.option_selector;
+    }
+    
+    // Speciale verwerking voor randomize input
+    if (stepType === 'input' && step.input_method === 'randomize') {
+        // Markeer als randomize - dit is de eigenschap die de code in price_calculator.py verwacht
+        step.randomize = true;
+        step.random_type = step.random_type || 'Generic Term';
+        
+        // Voeg land-specifieke informatie toe
+        if (step.country) {
+            step.country_settings = {
+                country: step.country,
+                format: getCountryFormat(step.country, step.random_type)
+            };
+            delete step.country; // Verwijder het losse country veld
+        }
+        
+        // Verwijder input_method omdat we nu randomize direct gebruiken
+        delete step.input_method;
+    }
+    
+    // Verwijder de select_method uit het uiteindelijke step object omdat dit alleen UI-gerelateerd is
+    delete step.select_method;
+    
+    // Verwijder de input_method omdat die alleen voor de UI is
+    if (step.input_method) {
+        delete step.input_method;
+    }
+    
+    // Sla op of de stap wordt bewerkt of nieuw is voordat de modal wordt verborgen
+    const isEditing = editingIndex >= 0;
+    
+    if (isEditing) {
+        // Vervang de bestaande stap op dezelfde positie
+        steps[editingIndex] = step;
+    } else {
+        // Voeg een nieuwe stap toe
+        steps.push(step);
+    }
+    
+    // Verberg de modal (deze reset de form maar niet de editingIndex)
+    hideAddStepModal();
+    
+    // Reset de editingIndex expliciet na het opslaan
+    editingIndex = -1;
+    
+    updateStepList();
+    updateJsonPreview();
+}
+
+// Helper functie om land-specifieke formaten te bepalen
+function getCountryFormat(country, type) {
+    const formats = {
+        Netherlands: {
+            'First Name': {
+                values: ['Jan', 'Piet', 'Henk', 'Kees', 'Willem', 'Maria', 'Els', 'Anne', 'Lisa', 'Emma'],
+                description: 'Common Dutch first names'
+            },
+            'Last Name': {
+                values: ['de Vries', 'Jansen', 'van Dijk', 'Bakker', 'Visser', 'Meijer', 'de Boer', 'Mulder', 'de Groot', 'Bos'],
+                description: 'Common Dutch last names'
+            },
+            'Street': {
+                values: ['Dorpsstraat', 'Kerkstraat', 'Schoolstraat', 'Molenweg', 'Julianalaan', 'Beatrixstraat', 'Wilhelminastraat', 'Oranjelaan'],
+                description: 'Common Dutch street names'
+            },
+            'City': {
+                values: ['Amsterdam', 'Rotterdam', 'Den Haag', 'Utrecht', 'Eindhoven', 'Groningen', 'Tilburg', 'Almere', 'Breda', 'Nijmegen'],
+                description: 'Dutch cities'
+            },
+            'Postal Code': {
+                pattern: '#### ??',
+                description: '4 digits followed by 2 uppercase letters (e.g., 1234 AB)'
+            },
+            'Phone Number': {
+                pattern: '06########',
+                description: 'Mobile number starting with 06 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999 with optional letter'
+            }
+        },
+        Germany: {
+            'First Name': {
+                values: ['Hans', 'Thomas', 'Michael', 'Andreas', 'Peter', 'Anna', 'Maria', 'Sarah', 'Julia', 'Laura'],
+                description: 'Common German first names'
+            },
+            'Last Name': {
+                values: ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann'],
+                description: 'Common German last names'
+            },
+            'Street': {
+                values: ['Hauptstraße', 'Schulstraße', 'Bahnhofstraße', 'Gartenstraße', 'Kirchstraße', 'Bergstraße', 'Waldstraße', 'Dorfstraße'],
+                description: 'Common German street names'
+            },
+            'City': {
+                values: ['Berlin', 'Hamburg', 'München', 'Köln', 'Frankfurt', 'Stuttgart', 'Düsseldorf', 'Leipzig', 'Dortmund', 'Essen'],
+                description: 'German cities'
+            },
+            'Postal Code': {
+                pattern: '#####',
+                description: '5 digits (PLZ)'
+            },
+            'Phone Number': {
+                pattern: '015########',
+                description: 'Mobile number starting with 015 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        France: {
+            'First Name': {
+                values: ['Jean', 'Pierre', 'Michel', 'Philippe', 'Nicolas', 'Marie', 'Sophie', 'Catherine', 'Isabelle', 'Anne'],
+                description: 'Common French first names'
+            },
+            'Last Name': {
+                values: ['Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand', 'Leroy', 'Moreau'],
+                description: 'Common French last names'
+            },
+            'Street': {
+                values: ['Rue de la Paix', 'Rue Principale', 'Rue de l\'Église', 'Avenue des Champs-Élysées', 'Rue du Commerce', 'Boulevard Saint-Michel'],
+                description: 'Common French street names'
+            },
+            'City': {
+                values: ['Paris', 'Marseille', 'Lyon', 'Toulouse', 'Nice', 'Nantes', 'Strasbourg', 'Montpellier', 'Bordeaux', 'Lille'],
+                description: 'French cities'
+            },
+            'Postal Code': {
+                pattern: '#####',
+                description: '5 digits'
+            },
+            'Phone Number': {
+                pattern: '06########',
+                description: 'Mobile number starting with 06 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        'United Kingdom': {
+            'First Name': {
+                values: ['James', 'John', 'William', 'David', 'George', 'Emma', 'Sarah', 'Elizabeth', 'Charlotte', 'Emily'],
+                description: 'Common British first names'
+            },
+            'Last Name': {
+                values: ['Smith', 'Jones', 'Williams', 'Brown', 'Taylor', 'Davies', 'Wilson', 'Evans', 'Thomas', 'Johnson'],
+                description: 'Common British last names'
+            },
+            'Street': {
+                values: ['High Street', 'Station Road', 'Church Street', 'Victoria Road', 'Green Lane', 'Manor Road', 'Kings Road', 'Queens Road'],
+                description: 'Common British street names'
+            },
+            'City': {
+                values: ['London', 'Birmingham', 'Manchester', 'Leeds', 'Liverpool', 'Newcastle', 'Nottingham', 'Sheffield', 'Bristol', 'Glasgow'],
+                description: 'British cities'
+            },
+            'Postal Code': {
+                pattern: '??? ???',
+                description: 'UK format (e.g., SW1A 1AA)'
+            },
+            'Phone Number': {
+                pattern: '07#########',
+                description: 'Mobile number starting with 07 followed by 9 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        Italy: {
+            'First Name': {
+                values: ['Giuseppe', 'Marco', 'Antonio', 'Giovanni', 'Mario', 'Maria', 'Anna', 'Giulia', 'Sofia', 'Chiara'],
+                description: 'Common Italian first names'
+            },
+            'Last Name': {
+                values: ['Rossi', 'Ferrari', 'Russo', 'Bianchi', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno'],
+                description: 'Common Italian last names'
+            },
+            'Street': {
+                values: ['Via Roma', 'Via Garibaldi', 'Via Dante', 'Corso Italia', 'Via Vittorio Emanuele', 'Via Mazzini', 'Via Verdi'],
+                description: 'Common Italian street names'
+            },
+            'City': {
+                values: ['Roma', 'Milano', 'Napoli', 'Torino', 'Palermo', 'Genova', 'Bologna', 'Firenze', 'Bari', 'Catania'],
+                description: 'Italian cities'
+            },
+            'Postal Code': {
+                pattern: '#####',
+                description: '5 digits (CAP)'
+            },
+            'Phone Number': {
+                pattern: '3##########',
+                description: 'Mobile number starting with 3 followed by 9 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        Spain: {
+            'First Name': {
+                values: ['Juan', 'José', 'Antonio', 'Manuel', 'Francisco', 'María', 'Carmen', 'Ana', 'Isabel', 'Laura'],
+                description: 'Common Spanish first names'
+            },
+            'Last Name': {
+                values: ['García', 'Rodríguez', 'González', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Martin'],
+                description: 'Common Spanish last names'
+            },
+            'Street': {
+                values: ['Calle Mayor', 'Calle Real', 'Plaza España', 'Avenida de la Constitución', 'Calle del Sol', 'Calle Nueva'],
+                description: 'Common Spanish street names'
+            },
+            'City': {
+                values: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Murcia', 'Palma', 'Bilbao', 'Alicante'],
+                description: 'Spanish cities'
+            },
+            'Postal Code': {
+                pattern: '#####',
+                description: '5 digits (Código Postal)'
+            },
+            'Phone Number': {
+                pattern: '6########',
+                description: 'Mobile number starting with 6 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        Poland: {
+            'First Name': {
+                values: ['Piotr', 'Jan', 'Andrzej', 'Krzysztof', 'Tomasz', 'Anna', 'Maria', 'Katarzyna', 'Małgorzata', 'Agnieszka'],
+                description: 'Common Polish first names'
+            },
+            'Last Name': {
+                values: ['Nowak', 'Kowalski', 'Wiśniewski', 'Wójcik', 'Kowalczyk', 'Kamiński', 'Lewandowski', 'Zieliński', 'Szymański'],
+                description: 'Common Polish last names'
+            },
+            'Street': {
+                values: ['ulica Mickiewicza', 'ulica Kościuszki', 'ulica Słowackiego', 'ulica Sienkiewicza', 'ulica Kolejowa', 'ulica Polna'],
+                description: 'Common Polish street names'
+            },
+            'City': {
+                values: ['Warszawa', 'Kraków', 'Łódź', 'Wrocław', 'Poznań', 'Gdańsk', 'Szczecin', 'Bydgoszcz', 'Lublin', 'Katowice'],
+                description: 'Polish cities'
+            },
+            'Postal Code': {
+                pattern: '##-###',
+                description: '2 digits, dash, 3 digits (e.g., 00-001)'
+            },
+            'Phone Number': {
+                pattern: '5########',
+                description: 'Mobile number starting with 5 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        Austria: {
+            'First Name': {
+                values: ['Michael', 'Stefan', 'Andreas', 'Thomas', 'Christian', 'Anna', 'Elisabeth', 'Maria', 'Sarah', 'Julia'],
+                description: 'Common Austrian first names'
+            },
+            'Last Name': {
+                values: ['Gruber', 'Wagner', 'Müller', 'Pichler', 'Moser', 'Steiner', 'Hofer', 'Berger', 'Huber', 'Bauer'],
+                description: 'Common Austrian last names'
+            },
+            'Street': {
+                values: ['Hauptstraße', 'Kirchengasse', 'Bahnhofstraße', 'Schulstraße', 'Gartenweg', 'Bergstraße', 'Wiener Straße'],
+                description: 'Common Austrian street names'
+            },
+            'City': {
+                values: ['Wien', 'Graz', 'Linz', 'Salzburg', 'Innsbruck', 'Klagenfurt', 'Villach', 'Wels', 'Sankt Pölten', 'Dornbirn'],
+                description: 'Austrian cities'
+            },
+            'Postal Code': {
+                pattern: '####',
+                description: '4 digits (Postleitzahl)'
+            },
+            'Phone Number': {
+                pattern: '06########',
+                description: 'Mobile number starting with 06 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        },
+        Belgium: {
+            'First Name': {
+                values: ['Jean', 'Marc', 'Luc', 'Michel', 'Pierre', 'Marie', 'Anne', 'Sophie', 'Julie', 'Claire'],
+                description: 'Common Belgian first names'
+            },
+            'Last Name': {
+                values: ['Peeters', 'Janssens', 'Maes', 'Jacobs', 'Mertens', 'Willems', 'Claes', 'Goossens', 'Wouters', 'De Smet'],
+                description: 'Common Belgian last names'
+            },
+            'Street': {
+                values: ['Kerkstraat', 'Schoolstraat', 'Stationsstraat', 'Nieuwstraat', 'Molenstraat', 'Rue de l\'Église', 'Rue de la Station'],
+                description: 'Common Belgian street names'
+            },
+            'City': {
+                values: ['Brussel', 'Antwerpen', 'Gent', 'Charleroi', 'Luik', 'Brugge', 'Namen', 'Leuven', 'Bergen', 'Oostende'],
+                description: 'Belgian cities'
+            },
+            'Postal Code': {
+                pattern: '####',
+                description: '4 digits'
+            },
+            'Phone Number': {
+                pattern: '04########',
+                description: 'Mobile number starting with 04 followed by 8 digits'
+            },
+            'House Number': {
+                pattern: '#-###',
+                description: 'Number between 1-999'
+            }
+        }
+    };
+
+    // Als er een specifiek formaat is voor dit land en type, gebruik dat
+    if (formats[country] && formats[country][type]) {
+        return formats[country][type];
+    }
+
+    // Anders, return null om aan te geven dat er geen specifiek formaat is
+    return null;
+}
+
+function updateStepList() {
+    const container = document.getElementById('stepList');
+    container.innerHTML = '';
+
+    steps.forEach((step, index) => {
+        const stepElement = document.createElement('div');
+        stepElement.className = 'bg-gray-50 p-4 rounded-lg flex items-center justify-between cursor-move';
+        stepElement.draggable = true;
+        stepElement.dataset.index = index;
+
+        // Add drag event listeners
+        stepElement.addEventListener('dragstart', handleDragStart);
+        stepElement.addEventListener('dragend', handleDragEnd);
+        stepElement.addEventListener('dragover', handleDragOver);
+        stepElement.addEventListener('drop', handleDrop);
+        
+        // Add visual handle for dragging
+        const dragHandle = document.createElement('div');
+        dragHandle.className = 'flex-shrink-0 mr-3 text-gray-400';
+        dragHandle.innerHTML = `<i class="fas fa-grip-vertical w-4 h-4"></i>`;
+
+        const stepInfo = document.createElement('div');
+        stepInfo.className = 'flex-1';
+        
+        const stepTitle = document.createElement('h4');
+        stepTitle.className = 'font-medium text-gray-900 capitalize';
+        stepTitle.textContent = step.type;
+        
+        const stepDetails = document.createElement('p');
+        stepDetails.className = 'text-sm text-gray-500 mt-1';
+        stepDetails.textContent = formatStepDetails(step);
+
+        stepInfo.appendChild(stepTitle);
+        stepInfo.appendChild(stepDetails);
+
+        const actions = document.createElement('div');
+        actions.className = 'flex gap-2 ml-4';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'text-blue-600 hover:text-blue-800';
+        editBtn.innerHTML = `<i class="fas fa-pencil-alt h-5 w-5"></i>`;
+        editBtn.onclick = () => editStep(index);
+
+        const duplicateBtn = document.createElement('button');
+        duplicateBtn.className = 'text-green-600 hover:text-green-800';
+        duplicateBtn.innerHTML = `<i class="fas fa-clone h-5 w-5"></i>`;
+        duplicateBtn.onclick = () => duplicateStep(index);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-red-600 hover:text-red-800';
+        deleteBtn.innerHTML = `<i class="fas fa-trash h-5 w-5"></i>`;
+        deleteBtn.onclick = () => deleteStep(index);
+
+        actions.appendChild(editBtn);
+        actions.appendChild(duplicateBtn);
+        actions.appendChild(deleteBtn);
+
+        stepElement.appendChild(dragHandle);
+        stepElement.appendChild(stepInfo);
+        stepElement.appendChild(actions);
+        container.appendChild(stepElement);
+    });
+}
+
+// Drag and drop handlers
+let draggedItem = null;
+
+function handleDragStart(e) {
+    draggedItem = this;
+    this.classList.add('opacity-50');
+    
+    // Add visual feedback to other items
+    document.querySelectorAll('#stepList > div').forEach(item => {
+        if (item !== draggedItem) {
+            item.classList.add('border-2', 'border-dashed', 'border-transparent');
+        }
+    });
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('opacity-50');
+    
+    // Remove visual feedback from all items
+    document.querySelectorAll('#stepList > div').forEach(item => {
+        item.classList.remove('border-2', 'border-dashed', 'border-transparent', 'border-blue-300');
+    });
+    
+    draggedItem = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    
+    // Add visual feedback only to the current target
+    document.querySelectorAll('#stepList > div').forEach(item => {
+        if (item === this && item !== draggedItem) {
+            item.classList.add('border-2', 'border-dashed', 'border-blue-300');
+        } else {
+            item.classList.remove('border-blue-300');
+        }
+    });
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    
+    if (draggedItem && this !== draggedItem) {
+        const fromIndex = parseInt(draggedItem.dataset.index);
+        const toIndex = parseInt(this.dataset.index);
+        
+        // Reorder the steps array
+        const [movedStep] = steps.splice(fromIndex, 1);
+        steps.splice(toIndex, 0, movedStep);
+        
+        // Update the UI
+        updateStepList();
+        updateJsonPreview();
+    }
+}
+
+function formatStepDetails(step) {
+    const details = [];
+    
+    // For index-based select steps, show special information
+    if (step.type === 'select' && step.use_index) {
+        details.push(`Dropdown: ${step.selector}`);
+        details.push(`Index: ${step.option_index}`);
+    } 
+    // For input steps with randomization, show special information
+    else if (step.type === 'input' && step.randomize) {
+        details.push(`Selector: ${step.selector}`);
+        details.push(`Random type: ${step.random_type || 'Generic Term'}`);
+        
+        // Show extra information for passwords
+        if (step.random_type === 'Password') {
+            const length = step.password_min_length ? 
+                (step.password_max_length ? 
+                    `${step.password_min_length}-${step.password_max_length}` : 
+                    `${step.password_min_length}+`) : 
+                (step.password_max_length ? `≤${step.password_max_length}` : '8-16');
+            
+            const features = [];
+            if (step.password_include_uppercase !== false) features.push('ABC');
+            if (step.password_include_numbers !== false) features.push('123');
+            if (step.password_include_special !== false) features.push('#$%');
+            
+            details.push(`Password settings: ${length} chars ${features.length ? '(' + features.join(',') + ')' : ''}`);
+        }
+    }
+    else {
+        // Default details for all other steps
+        if (step.selector) details.push(`Selector: ${step.selector}`);
+        if (step.value) details.push(`Value: ${step.value}`);
+        if (step.duration) details.push(`Duration: ${step.duration}`);
+        if (step.description) details.push(step.description);
+    }
+    
+    return details.join(' | ') || 'No additional details';
+}
+
+function editStep(index) {
+    editingIndex = index;
+    const step = steps[index];
+    
+    // Show the modal
+    document.getElementById('addStepModal').classList.remove('hidden');
+    
+    // Set step type in dropdown
+    document.getElementById('stepType').value = step.type;
+    
+    // Update fields for this step type
+    updateStepFields();
+    
+    // Wacht even om er zeker van te zijn dat alle velden geladen zijn
+    setTimeout(() => {
+        // For select type, we need to select the correct selection method
+        if (step.type === 'select') {
+            // Determine whether we use index or selector
+            const isIndexBased = step.use_index || (step.value && typeof step.value === 'string' && step.value.startsWith('index:'));
+            
+            // Select the correct radio button
+            const selectorRadio = document.getElementById('select_method_selector');
+            const indexRadio = document.getElementById('select_method_index');
+            
+            if (selectorRadio && indexRadio) {
+                if (isIndexBased) {
+                    indexRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    indexRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        // Fill selection fields
+                        const selectElementField = document.getElementById('select_element');
+                        if (selectElementField) {
+                            selectElementField.value = step.selector || '';
+                        }
+                        
+                        // Extract the index number from the value
+                        let optionIndex = "0";
+                        if (step.value && typeof step.value === 'string' && step.value.startsWith('index:')) {
+                            optionIndex = step.value.split(':')[1];
+                        } else if (step.option_index) {
+                            optionIndex = step.option_index;
+                        }
+                        
+                        const optionIndexField = document.getElementById('option_index');
+                        if (optionIndexField) {
+                            optionIndexField.value = optionIndex;
+                        }
+                    }, 100);
+                } else {
+                    selectorRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    selectorRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        // Fill selection fields
+                        const selectorField = document.getElementById('selector');
+                        if (selectorField) {
+                            selectorField.value = step.selector || '';
+                        }
+                        
+                        const valueField = document.getElementById('value');
+                        if (valueField) {
+                            valueField.value = step.value || '';
+                        }
+                        
+                        const unitField = document.getElementById('unit');
+                        if (unitField && step.unit) {
+                            unitField.value = step.unit;
+                        }
+                        
+                        const optionContainerField = document.getElementById('option_container');
+                        if (optionContainerField && step.option_container) {
+                            optionContainerField.value = step.option_container;
+                        }
+                        
+                        const optionSelectorField = document.getElementById('option_selector');
+                        if (optionSelectorField && step.option_selector) {
+                            optionSelectorField.value = step.option_selector;
+                        }
+                    }, 100);
+                }
+            }
+        } else if (step.type === 'input') {
+            // Determine whether we use randomize or fixed value
+            const isRandomized = step.randomize === true;
+            
+            // Select the correct radio button
+            const fixedRadio = document.getElementById('input_method_fixed');
+            const randomizeRadio = document.getElementById('input_method_randomize');
+            
+            if (fixedRadio && randomizeRadio) {
+                // Fill first the selector, which is always visible
+                const selectorField = document.getElementById('selector');
+                if (selectorField) {
+                    selectorField.value = step.selector || '';
+                }
+                
+                // Fill clear_first, which is always visible
+                const clearFirstField = document.getElementById('clear_first');
+                if (clearFirstField && 'clear_first' in step) {
+                    clearFirstField.checked = step.clear_first;
+                }
+                
+                if (isRandomized) {
+                    randomizeRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    randomizeRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        // Set the country if available
+                        if (step.country_settings && step.country_settings.country) {
+                            const countrySelect = document.getElementById('country');
+                            if (countrySelect) {
+                                countrySelect.value = step.country_settings.country;
+                            }
+                        }
+                        
+                        // Set the random type
+                        const randomTypeSelect = document.getElementById('random_type');
+                        if (randomTypeSelect && step.random_type) {
+                            randomTypeSelect.value = step.random_type;
+                            
+                            // Trigger a change event to show conditionals
+                            randomTypeSelect.dispatchEvent(new Event('change'));
+                            
+                            // Wait a moment to ensure password fields are created
+                            if (step.random_type === 'Password') {
+                                setTimeout(() => {
+                                    // Fill password options
+                                    const minLengthField = document.getElementById('password_min_length');
+                                    if (minLengthField && step.password_min_length) {
+                                        minLengthField.value = step.password_min_length;
+                                    }
+                                    
+                                    const maxLengthField = document.getElementById('password_max_length');
+                                    if (maxLengthField && step.password_max_length) {
+                                        maxLengthField.value = step.password_max_length;
+                                    }
+                                    
+                                    const uppercaseField = document.getElementById('password_include_uppercase');
+                                    if (uppercaseField && step.password_include_uppercase !== undefined) {
+                                        uppercaseField.checked = step.password_include_uppercase;
+                                    }
+                                    
+                                    const numbersField = document.getElementById('password_include_numbers');
+                                    if (numbersField && step.password_include_numbers !== undefined) {
+                                        numbersField.checked = step.password_include_numbers;
+                                    }
+                                    
+                                    const specialField = document.getElementById('password_include_special');
+                                    if (specialField && step.password_include_special !== undefined) {
+                                        specialField.checked = step.password_include_special;
+                                    }
+                                }, 200);
+                            }
+                        }
+                    }, 100);
+                } else {
+                    fixedRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    fixedRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        const valueField = document.getElementById('value');
+                        if (valueField) {
+                            valueField.value = step.value || '';
+                        }
+                        
+                        const unitField = document.getElementById('unit');
+                        if (unitField && step.unit) {
+                            unitField.value = step.unit;
+                        }
+                    }, 100);
+                }
+            }
+        } else {
+            // Fill all fields
+            Object.keys(step).forEach(key => {
+                if (key !== 'type') {
+                    const field = document.getElementById(key);
+                    if (field) {
+                        if (field.type === 'checkbox') {
+                            field.checked = step[key];
+                        } else {
+                            field.value = step[key];
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update button text
+        document.getElementById('saveStepBtn').textContent = 'Update Step';
+        
+        // Koppel Enter toets aan de primary button
+        setupModalEnterKey(document.getElementById('addStepModal'), document.getElementById('saveStepBtn'));
+    }, 200); // Longer timeout to ensure all fields are loaded
+}
+
+function deleteStep(index) {
+    if (confirm('Are you sure you want to delete this step?')) {
+        steps.splice(index, 1);
+        updateStepList();
+        updateJsonPreview();
+    }
+}
+
+function clearSteps() {
+    if (confirm('Are you sure you want to clear all steps?')) {
+        steps = [];
+        // Reset current configuration info
+        document.getElementById('currentConfigInfo').classList.add('hidden');
+        document.getElementById('currentDomain').textContent = '-';
+        document.getElementById('currentCategory').textContent = '-';
+        updateStepList();
+        updateJsonPreview();
+    }
+}
+
+function updateJsonPreview() {
+    const config = {
+        steps: steps
+    };
+    
+    // Example of correct JSON configuration for randomization:
+    // {
+    //   "selector": "#field-firstname",
+    //   "type": "input",
+    //   "randomize": true,
+    //   "random_type": "First Name",
+    //   "clear_first": true
+    // }
+    
+    document.getElementById('jsonPreview').textContent = JSON.stringify(config, null, 2);
+}
+
+function copyJsonToClipboard() {
+    const jsonText = document.getElementById('jsonPreview').textContent;
+    navigator.clipboard.writeText(jsonText).then(() => {
+        showNotification('Configuration copied to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+        showNotification('Failed to copy configuration', 'error');
+    });
+}
+
+async function loadConfiguration() {
+    const domain = document.getElementById('loadDomain').value;
+    const category = document.getElementById('loadCategory').value;
+
+    if (!domain) {
+        showNotification('Please select a domain', 'error');
+        return;
+    }
+
+    const config = domainConfigs[domain];
+    if (!config || !config.categories || !config.categories[category]) {
+        showNotification(`No ${category} configuration found for ${domain}`, 'error');
+        return;
+    }
+
+    // Update current configuration info
+    document.getElementById('currentConfigInfo').classList.remove('hidden');
+    document.getElementById('currentDomain').textContent = domain;
+    document.getElementById('currentCategory').textContent = category;
+
+    steps = config.categories[category].steps || [];
+    updateStepList();
+    updateJsonPreview();
+    hideLoadConfigModal();
+}
+
+async function saveConfiguration() {
+    const existingDomain = document.getElementById('existingDomain').value;
+    const newDomain = document.getElementById('domainName').value.trim();
+    const domain = existingDomain || newDomain;
+    const category = document.getElementById('configCategory').value;
+
+    if (!domain) {
+        showNotification('Please enter a domain name', 'error');
+        return;
+    }
+
+    // If saving to an existing domain, ask for confirmation
+    if (existingDomain && !confirm(`Are you sure you want to update the existing configuration for ${existingDomain}?`)) {
+        return;
+    }
+
+    const config = {
+        domain: domain,
+        categories: {
+            [category]: {
+                steps: steps
+            }
+        }
+    };
+
+    // If updating existing domain, merge with existing categories
+    if (existingDomain && domainConfigs[existingDomain]) {
+        const existingConfig = domainConfigs[existingDomain];
+        config.categories = {
+            ...existingConfig.categories,
+            [category]: {
+                steps: steps
+            }
+        };
+    }
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                config: config
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showNotification('Configuration saved successfully!', 'success');
+            hideSaveConfigModal();
+            // Redirect to config page after successful save
+            window.location.href = '/config';
+        } else {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+    } catch (error) {
+        showNotification(`Error saving configuration: ${error.message}`, 'error');
+    }
+}
+
+async function saveCurrentConfiguration() {
+    const currentDomain = document.getElementById('currentDomain').textContent;
+    const currentCategory = document.getElementById('currentCategory').textContent;
+
+    if (currentDomain === '-' || currentCategory === '-') {
+        showNotification('Please load a configuration first', 'error');
+        return;
+    }
+
+    const config = {
+        domain: currentDomain,
+        categories: {
+            [currentCategory]: {
+                steps: steps
+            }
+        }
+    };
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: currentDomain,
+                config: config
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showNotification('Configuration saved successfully!', 'success');
+        } else {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+    } catch (error) {
+        showNotification(`Error saving configuration: ${error.message}`, 'error');
+    }
+}
+
+// Helper functie om event listeners in te stellen voor velden die conditionele velden beïnvloeden
+function setupConditionalFieldListeners(stepType, fieldValues) {
+    // Vind alle velden die andere velden beïnvloeden via condities
+    stepFields[stepType].filter(field => {
+        return stepFields[stepType].some(f => f.condition && f.condition.field === field.name);
+    }).forEach(field => {
+        const element = document.getElementById(field.name);
+        if (!element) return;
+        
+        if (field.type === 'radio') {
+            const radioGroup = document.querySelectorAll(`input[name="${field.name}"]`);
+            radioGroup.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    fieldValues[field.name] = radio.value;
+                    updateConditionalFields(stepType, fieldValues);
+                });
+            });
+        } else if (field.type === 'select') {
+            element.addEventListener('change', () => {
+                fieldValues[field.name] = element.value;
+                updateConditionalFields(stepType, fieldValues);
+            });
+        } else {
+            element.addEventListener('change', () => {
+                fieldValues[field.name] = element.type === 'checkbox' ? element.checked : element.value;
+                updateConditionalFields(stepType, fieldValues);
+            });
+        }
+    });
+}
+
+// Modal setup
+function setupModal(modalId, triggerId, closeId) {
+    const modal = document.getElementById(modalId);
+    const trigger = document.getElementById(triggerId);
+    const closeBtn = document.getElementById(closeId);
+
+    if (!modal || !trigger || !closeBtn) {
+        console.error(`Invalid modal setup: ${modalId}, ${triggerId}, ${closeId}`);
+        return;
+    }
+
+    // Open modal
+    trigger.onclick = function() {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Close modal
+    closeBtn.onclick = function() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // Close on outside click
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // Handle enter key
+    setupModalEnterKey(modal, closeBtn);
+}
+
+// Add the duplicateStep function
+function duplicateStep(index) {
+    // Create a deep copy of the step
+    const stepCopy = JSON.parse(JSON.stringify(steps[index]));
+    // Insert the copy after the original step
+    steps.splice(index + 1, 0, stepCopy);
+    updateStepList();
+    updateJsonPreview();
+    showNotification('Step duplicated successfully', 'success');
+}
+</script>
+{% endblock %} 

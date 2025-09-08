@@ -1,0 +1,1920 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Notification container -->
+    <div id="notification" class="fixed top-4 right-4 z-50 hidden">
+        <div class="rounded-md p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-900" id="notificationMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">Configuration</h1>
+        <div class="flex gap-4">
+            <button onclick="exportConfigs()" class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                Export All
+            </button>
+            <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Import All
+            </button>
+        </div>
+    </div>
+
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+            Domain Configurations
+            <span class="text-base font-normal text-gray-500 ml-2">({{ domain_configs|length }} domains)</span>
+        </h2>
+    </div>
+    
+    <div class="flex items-center gap-4 mb-6">
+        <div class="flex gap-4 flex-grow">
+            <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="newDomainConfig()">
+                <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                Add New Domain
+            </button>
+            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showModal('domainImportModal')">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Import Configuration
+            </button>
+        </div>
+        <div class="w-72">
+            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="domainSearch" placeholder="Search domains..." onkeyup="filterDomains()">
+        </div>
+    </div>
+    
+    <div id="domainAccordion" class="mt-5 space-y-4">
+        {% for extension, grouped_domains in domains_by_extension.items()|sort %}
+        <div class="mb-4 extension-header" data-extension="{{ extension }}">
+            <h3 class="text-lg font-medium text-gray-900 mb-3">{{ extension }} domeinen <span class="domain-count">({{ grouped_domains|length }})</span></h3>
+            <div class="space-y-2">
+                {% for domain, config in grouped_domains|sort(attribute='0') %}
+                {% set sanitized_domain = domain|replace('/', '_')|replace('.', '_')|replace(':', '_')|replace('?', '_')|replace('&', '_')|replace('=', '_')|replace(' ', '_') %}
+                <div class="bg-white shadow rounded-lg overflow-hidden domain-item" data-domain="{{ domain }}" data-sanitized-domain="{{ sanitized_domain }}">
+                    <div class="border-b border-gray-200">
+                        <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_domain_{{ sanitized_domain }}">
+                            <span class="font-medium text-gray-900">{{ config.domain }}</span>
+                            <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
+                        </button>
+                    </div>
+                    <div id="collapse_domain_{{ sanitized_domain }}" class="hidden">
+                        <div class="p-4">
+                            <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ sanitized_domain }}" data-original-domain="{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
+                            <div class="mt-4 flex justify-between">
+                                <div class="flex gap-2">
+                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-blue-700 text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="saveDomainConfig('{{ domain }}')">
+                                        <i class="fas fa-save mr-2"></i>
+                                        Save
+                                    </button>
+                                    <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deleteDomainConfig('{{ domain }}')">
+                                        <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('domain', '{{ domain }}')">
+                                        <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                        Version History
+                                    </button>
+                                    <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportDomainConfig('{{ domain }}')">
+                                        <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                        Export
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6">Country Configurations</h2>
+    <div class="flex items-center gap-4 mb-6">
+        <div class="flex gap-4 flex-grow">
+            <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="newCountryConfig()">
+                <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                Add New Country
+            </button>
+            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showImportCountryModal()">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Import Configuration
+            </button>
+        </div>
+    </div>
+    
+    <div class="space-y-2" id="countryAccordion">
+        {% for country, config in country_configs.items() %}
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="border-b border-gray-200">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCountry{{ loop.index }}">
+                    <span class="font-medium text-gray-900">{{ config.name }} ({{ config.country_code }})</span>
+                    <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
+                </button>
+                    </div>
+            <div id="collapseCountry{{ loop.index }}" class="hidden">
+                <div class="p-4">
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="saveCountryConfig('{{ country }}')">
+                                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                                Save
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deleteCountryConfig('{{ country }}')">
+                                <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                Delete
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('country', '{{ country }}')">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                Version History
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportCountryConfig('{{ country }}')">
+                                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6">Package Configurations</h2>
+    <div class="flex items-center gap-4 mb-6">
+        <div class="flex gap-4 flex-grow">
+            <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="newPackageConfig()">
+                <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                Add New Package
+            </button>
+            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showImportPackageModal()">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Import Configuration
+            </button>
+        </div>
+    </div>
+    
+    <div class="space-y-2" id="packageAccordion">
+        {% for id, config in package_configs.items()|sort %}
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="border-b border-gray-200">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">
+                    <span class="font-medium text-gray-900">{{ config.name }} ({{ config.display }})</span>
+                    <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
+                </button>
+                    </div>
+            <div id="collapsePackage{{ loop.index }}" class="hidden">
+                <div class="p-4">
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="savePackageConfig('{{ id }}')">
+                                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                                Save
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deletePackageConfig('{{ id }}')">
+                                <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                Delete
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('package', '{{ id }}')">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                Version History
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportPackageConfig('{{ id }}')">
+                                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- New Domain Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="newDomainModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">New Domain Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="newDomainConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newDomainConfig"></textarea>
+                </div>
+                </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newDomainModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="createDomainConfig()">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Create
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Country Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="newCountryModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">New Country Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="newCountryConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newCountryConfig"></textarea>
+                </div>
+                </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newCountryModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="createCountryConfig()">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Create
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Config Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="importConfigModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="importFile" class="block text-sm font-medium text-gray-700 mb-1">Configuration File</label>
+                    <input type="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="importFile" accept=".json">
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('importConfigModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="importConfig()">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Package Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="newPackageModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">New Package Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="newPackageConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newPackageConfig"></textarea>
+                </div>
+                </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newPackageModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="createPackageConfig()">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Create
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History Modal -->
+<div id="versionModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" style="z-index: 100;">
+    <div class="fixed inset-0 overflow-hidden">
+        <div class="flex h-full items-center justify-center p-4">
+            <div class="relative w-full h-[calc(100vh-2rem)] flex">
+                <div class="bg-white rounded-lg shadow-xl w-full flex h-full">
+                    <!-- Left sidebar with versions -->
+                    <div class="w-96 bg-gray-50 border-r border-gray-200 overflow-y-auto rounded-l-lg">
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Version History</h3>
+                                <button onclick="closeVersionModal()" class="text-gray-400 hover:text-gray-500 shadow-sm">
+                                    <span class="sr-only">Close</span>
+                                    <i class="fas fa-xmark h-4 w-4"></i>
+                                </button>
+                            </div>
+                            <div id="versionList" class="space-y-4">
+                                <!-- Versions will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main content area with diff -->
+                    <div class="flex-1 overflow-y-auto rounded-r-lg">
+                        <div class="p-6">
+                            <div id="diffContainer">
+                                <!-- Diff will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Country Config Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="importCountryModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import Country Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="importCountryFile" class="block text-sm font-medium text-gray-700 mb-1">Configuration File</label>
+                    <input type="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="importCountryFile" accept=".json">
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('importCountryModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="importCountryConfig()">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Package Config Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="importPackageModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import Package Configuration</h3>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="importPackageFile" class="block text-sm font-medium text-gray-700 mb-1">Configuration File</label>
+                    <input type="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="importPackageFile" accept=".json">
+                </div>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('importPackageModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="importPackageConfig()">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="importModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import All Configurations</h3>
+            </div>
+            <div class="p-6">
+                <form id="importForm" class="space-y-4">
+                    <div>
+                        <label for="configFile" class="block text-sm font-medium text-gray-700 mb-1">Configuration File</label>
+                        <input type="file" id="configFile" accept=".json" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="clearExisting" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="clearExisting" class="ml-2 block text-sm text-gray-900">Clear existing configurations</label>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button type="button" onclick="hideModal('importModal')" class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    Cancel
+                </button>
+                <button type="submit" form="importForm" class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Domain Import Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="domainImportModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import Domain Configuration</h3>
+            </div>
+            <div class="p-6">
+                <form id="domainImportForm" class="space-y-4">
+                    <div>
+                        <label for="domainFile" class="block text-sm font-medium text-gray-700 mb-1">Domain File (CSV)</label>
+                        <input type="file" id="domainFile" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="mt-1 text-sm text-gray-500">CSV should contain: domain,selector,price_selector</p>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button type="button" onclick="hideModal('domainImportModal')" class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    Cancel
+                </button>
+                <button type="submit" form="domainImportForm" class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Add diff libraries -->
+<script src="/static/js/diff.js"></script>
+<script src="/static/js/diff2html.min.js"></script>
+<script src="/static/js/diff2html-ui.min.js"></script>
+
+<script>
+// Modal functions
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('hidden');
+        
+        // Zoek de primaire button in de modal (meestal de blauwe button)
+        let primaryButton = null;
+        
+        // In onze modals is de primaire knop meestal de laatste knop in de button-rij
+        // of een button met blauwe styling (bg-blue-600, bg-green-600)
+        primaryButton = modal.querySelector('button.bg-blue-600') || 
+                        modal.querySelector('button.bg-green-600') ||
+                        modal.querySelector('button[type="submit"]');
+        
+        if (primaryButton) {
+            // Verwijder eerst eventuele bestaande handlers
+            modal.removeEventListener('keydown', modal._keydownHandler);
+            
+            // Maak en sla de handler op zodat deze later kan worden verwijderd
+            modal._keydownHandler = function(e) {
+                if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+                    // Voorkom dat de Enter-toets in textarea's en input velden in forms de submit trigger
+                    if (e.target.tagName.toLowerCase() === 'textarea' || e.target.tagName.toLowerCase() === 'input') return;
+                    
+                    // Voorkom standaard form submit gedrag
+                    e.preventDefault();
+                    
+                    // Trigger klik op de primaire knop
+                    primaryButton.click();
+                }
+            };
+            
+            // Voeg event listener toe
+            modal.addEventListener('keydown', modal._keydownHandler);
+        }
+    }
+}
+
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+// Notification function
+function showNotification(message, type = 'success') {
+    return new Promise((resolve) => {
+        const notification = document.getElementById('notification');
+        const messageElement = document.getElementById('notificationMessage');
+        
+        // Set message and style based on type
+        messageElement.textContent = message;
+        notification.className = `fixed top-4 right-4 z-50 ${type === 'success' ? 'bg-green-50' : 'bg-red-50'}`;
+        
+        // Show notification
+        notification.classList.remove('hidden');
+        
+        // Hide after 3 seconds and resolve the promise
+        setTimeout(() => {
+            notification.classList.add('hidden');
+            resolve();
+        }, 3000);
+    });
+}
+
+// Domain configuration functions
+function newDomainConfig() {
+    showModal('newDomainModal');
+    const defaultConfig = {
+        "domain": "",
+        "categories": {
+            "square_meter_price": {
+                "steps": [
+                    {
+                        "type": "select",
+                        "selector": "",
+                        "value": "{thickness}",
+                        "unit": "mm"
+                    },
+                    {
+                        "type": "input",
+                        "selector": "",
+                        "value": "{width}",
+                        "unit": "mm"
+                    },
+                    {
+                        "type": "wait",
+                        "duration": "default"
+                    },
+                    {
+                        "type": "input",
+                        "selector": "",
+                        "value": "{length}",
+                        "unit": "mm"
+                    }
+                ]
+            },
+            "shipping": {
+                "steps": [
+                    {
+                        "type": "select",
+                        "selector": "#thickness",
+                        "value": "{thickness}",
+                        "unit": "mm"
+                    },
+                    {
+                        "type": "wait",
+                        "duration": "default"
+                    },
+                    {
+                        "type": "read_price",
+                        "selector": "#price",
+                        "includes_vat": false
+                    }
+                ]
+            }
+        }
+    };
+    document.getElementById('newDomainConfig').value = JSON.stringify(defaultConfig, null, 2);
+}
+
+function showImportModal() {
+    showModal('importConfigModal');
+    document.getElementById('importFile').value = '';
+}
+
+async function saveDomainConfig(domain) {
+    try {
+        // Find the element using the sanitized domain ID
+        const domainItems = document.querySelectorAll('.domain-item');
+        let configElement = null;
+        let originalDomain = domain;
+        
+        // First try to find by sanitized domain ID (preferred method)
+        for (const item of domainItems) {
+            if (item.getAttribute('data-domain') === domain) {
+                const sanitizedId = item.getAttribute('data-sanitized-domain');
+                configElement = document.getElementById(`domain_${sanitizedId}`);
+                if (configElement) {
+                    originalDomain = configElement.getAttribute('data-original-domain') || domain;
+                    break;
+                }
+            }
+        }
+        
+        // If still not found, try the old method as fallback
+        if (!configElement) {
+            configElement = document.getElementById(`domain_${domain}`);
+        }
+        
+        if (!configElement) {
+            throw new Error(`Could not find configuration for domain ${domain}`);
+        }
+
+        const config = JSON.parse(configElement.value);
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: originalDomain,
+                config: config
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+
+        await showNotification('Configuration saved successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error saving configuration: ${error.message}`, 'error');
+    }
+}
+
+async function createDomainConfig() {
+    try {
+        const configText = document.getElementById('newDomainConfig').value;
+        const config = JSON.parse(configText);
+        
+        if (!config.domain) {
+            throw new Error('Domain name is required in the configuration (use the "domain" field)');
+        }
+
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: config.domain,
+                config: config
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+
+        hideModal('newDomainModal');
+        await showNotification('Configuration created successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error creating configuration: ${error.message}`, 'error');
+    }
+}
+
+async function deleteDomainConfig(domain) {
+    if (!confirm(`Are you sure you want to delete the configuration for ${domain}?`)) {
+        return;
+    }
+
+    try {
+        console.log(`Deleting domain: ${domain}`);
+        
+        // Instead of using URL parameter, send domain in request body
+        const response = await fetch('/api/config/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                config: {} // Empty config as we're just using this to delete
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server error response:', errorText);
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete configuration');
+        }
+
+        await showNotification('Configuration deleted successfully', 'success');
+        location.reload();
+    } catch (error) {
+        console.error('Error deleting configuration:', error);
+        showNotification(`Error deleting configuration: ${error.message}`, 'error');
+    }
+}
+
+// Country configuration functions
+function newCountryConfig() {
+    showModal('newCountryModal');
+    const defaultConfig = {
+        "country_code": "",
+        "name": "",
+        "currency": "EUR",
+        "currency_symbol": "€",
+        "vat_rate": 21,
+        "decimal_separator": ",",
+        "thousands_separator": "."
+    };
+    document.getElementById('newCountryConfig').value = JSON.stringify(defaultConfig, null, 2);
+}
+
+async function saveCountryConfig(country) {
+    try {
+        const configElement = document.getElementById(`country_${country}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for country ${country}`);
+        }
+
+        const config = JSON.parse(configElement.value);
+        const response = await fetch('/api/country', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                country: country,
+                config: config
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+
+        await showNotification('Configuration saved successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error saving configuration: ${error.message}`, 'error');
+    }
+}
+
+async function createCountryConfig() {
+    try {
+        const configText = document.getElementById('newCountryConfig').value;
+        const config = JSON.parse(configText);
+        
+        if (!config.country_code) {
+            throw new Error('Country code is required in the configuration (use the "country_code" field)');
+        }
+
+        const response = await fetch('/api/country', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                country: config.country_code,
+                config: config
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+
+        hideModal('newCountryModal');
+        await showNotification('Configuration created successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error creating configuration: ${error.message}`, 'error');
+    }
+}
+
+async function deleteCountryConfig(country) {
+    if (!confirm(`Are you sure you want to delete the configuration for ${country}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/country/${country}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete configuration');
+        }
+
+        await showNotification('Configuration deleted successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error deleting configuration: ${error.message}`, 'error');
+    }
+}
+
+// Package configuration functions
+function newPackageConfig() {
+    showModal('newPackageModal');
+    const defaultConfig = {
+        "id": "",
+        "name": "",
+        "description": "",
+        "display": "",
+        "length": 0,
+        "width": 0,
+        "thickness": 0,
+        "quantity": 1
+    };
+    document.getElementById('newPackageConfig').value = JSON.stringify(defaultConfig, null, 2);
+}
+
+async function savePackageConfig(id) {
+    try {
+        const configElement = document.getElementById(`package_${id}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for package ${id}`);
+        }
+
+        const config = JSON.parse(configElement.value);
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                package_id: id,
+                config: config
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+
+        await showNotification('Configuration saved successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error saving configuration: ${error.message}`, 'error');
+    }
+}
+
+async function createPackageConfig() {
+    try {
+        const configText = document.getElementById('newPackageConfig').value;
+        const config = JSON.parse(configText);
+        
+        if (!config.id) {
+            throw new Error('Package ID is required in the configuration (use the "id" field)');
+        }
+
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                package_id: config.id,
+                config: config
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+
+        hideModal('newPackageModal');
+        await showNotification('Configuration created successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error creating configuration: ${error.message}`, 'error');
+    }
+}
+
+async function deletePackageConfig(id) {
+    if (!confirm(`Are you sure you want to delete the configuration for package ${id}?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/packages/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete configuration');
+        }
+
+        await showNotification('Configuration deleted successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification(`Error deleting configuration: ${error.message}`, 'error');
+    }
+}
+
+// Import/Export functions
+function exportDomainConfig(domain) {
+    try {
+        // Find the configElement using sanitized domain ID if available
+        let configElement = null;
+        const domainItems = document.querySelectorAll('.domain-item');
+        
+        // First try to find by data-domain attribute
+        for (const item of domainItems) {
+            if (item.getAttribute('data-domain') === domain) {
+                const sanitizedId = item.getAttribute('data-sanitized-domain');
+                if (sanitizedId) {
+                    configElement = document.getElementById(`domain_${sanitizedId}`);
+                    if (configElement) break;
+                }
+            }
+        }
+        
+        // Fallback to direct ID if needed
+        if (!configElement) {
+            configElement = document.getElementById(`domain_${domain}`);
+        }
+        
+        if (!configElement) {
+            throw new Error(`Could not find configuration for domain ${domain}`);
+        }
+
+        const config = JSON.parse(configElement.value);
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Use a safe filename by replacing problematic characters
+        const safeFilename = domain.replace(/[\/\\:*?"<>|]/g, '_');
+        a.download = `${safeFilename}_config.json`;
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        showNotification(`Error exporting configuration: ${error.message}`, 'error');
+    }
+}
+
+function exportCountryConfig(country) {
+    try {
+        const configElement = document.getElementById(`country_${country}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for country ${country}`);
+        }
+
+        const config = JSON.parse(configElement.value);
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${country}_config.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        showNotification(`Error exporting configuration: ${error.message}`, 'error');
+    }
+}
+
+function exportPackageConfig(id) {
+    try {
+        const configElement = document.getElementById(`package_${id}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for package ${id}`);
+        }
+
+        const config = JSON.parse(configElement.value);
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `package_${id}_config.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        showNotification(`Error exporting configuration: ${error.message}`, 'error');
+    }
+}
+
+async function importConfig() {
+    try {
+        const fileInput = document.getElementById('importFile');
+        const file = fileInput.files[0];
+        if (!file) {
+            throw new Error('Please select a file to import');
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                if (!config.domain) {
+                    throw new Error('Configuration file must contain a domain field');
+                }
+                
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        domain: config.domain,
+                        config: config
+                    })
+                });
+                
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to import configuration');
+                }
+
+                hideModal('importConfigModal');
+                showNotification('Configuration imported successfully', 'success');
+                location.reload();
+            } catch (error) {
+                showNotification(`Error importing configuration: ${error.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    } catch (error) {
+        showNotification(`Error importing configuration: ${error.message}`, 'error');
+    }
+}
+
+// Toggle accordion items
+document.addEventListener('DOMContentLoaded', function() {
+    const accordionButtons = document.querySelectorAll('[data-bs-toggle="collapse"]');
+    accordionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-bs-target');
+            const targetElement = document.getElementById(targetId.substring(1));
+            if (targetElement) {
+                targetElement.classList.toggle('hidden');
+                const icon = this.querySelector('i');
+                if (icon) {
+                    // Toggle each class separately
+                    icon.classList.toggle('transform');
+                    icon.classList.toggle('rotate-180');
+                }
+            }
+        });
+    });
+});
+
+// Domain search functionality
+function filterDomains() {
+    const searchInput = document.getElementById('domainSearch');
+    const searchTerm = searchInput.value.toLowerCase();
+    const domainItems = document.querySelectorAll('.domain-item');
+    let visibleCount = 0;
+    
+    // Zoek door alle domein items
+    domainItems.forEach(item => {
+        const domain = item.getAttribute('data-domain').toLowerCase();
+        if (domain.includes(searchTerm)) {
+            item.style.display = '';
+            visibleCount++;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Update the extension headers visibilities
+    const extensionHeaders = document.querySelectorAll('.extension-header');
+    extensionHeaders.forEach(header => {
+        const extension = header.getAttribute('data-extension');
+        const extensionDomains = document.querySelectorAll(`.domain-item[data-domain$="${extension}"]`);
+        let visibleExtensionDomains = 0;
+        extensionDomains.forEach(item => {
+            if (item.style.display !== 'none') {
+                visibleExtensionDomains++;
+            }
+        });
+        
+        // Update the count and visibility of the extension header
+        const countElement = header.querySelector('.domain-count');
+        if (countElement) {
+            countElement.textContent = `(${visibleExtensionDomains})`;
+        }
+        
+        if (visibleExtensionDomains === 0) {
+            header.style.display = 'none';
+        } else {
+            header.style.display = '';
+        }
+    });
+}
+
+// Setup all domain-related buttons with proper data handling for special characters
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup domain-related buttons
+    document.querySelectorAll('.domain-item').forEach(item => {
+        const domain = item.getAttribute('data-domain');
+        const sanitizedDomain = item.getAttribute('data-sanitized-domain');
+        
+        if (!domain) return; // Skip if no domain attribute found
+        
+        // Find all buttons within this domain item
+        const buttonContainer = item.querySelector('.p-4');
+        if (!buttonContainer) return;
+        
+        // Setup save button
+        const saveButton = buttonContainer.querySelector('button[onclick*="saveDomainConfig"]');
+        if (saveButton) {
+            saveButton.removeAttribute('onclick');
+            saveButton.addEventListener('click', function() {
+                saveDomainConfig(domain);
+            });
+        }
+        
+        // Setup delete button
+        const deleteButton = buttonContainer.querySelector('button[onclick*="deleteDomainConfig"]');
+        if (deleteButton) {
+            deleteButton.removeAttribute('onclick');
+            deleteButton.addEventListener('click', function() {
+                deleteDomainConfig(domain);
+            });
+        }
+        
+        // Setup version history button
+        const versionButton = buttonContainer.querySelector('button[onclick*="showVersions"]');
+        if (versionButton) {
+            versionButton.removeAttribute('onclick');
+            versionButton.addEventListener('click', function() {
+                showVersions('domain', domain);
+            });
+        }
+        
+        // Setup export button
+        const exportButton = buttonContainer.querySelector('button[onclick*="exportDomainConfig"]');
+        if (exportButton) {
+            exportButton.removeAttribute('onclick');
+            exportButton.addEventListener('click', function() {
+                exportDomainConfig(domain);
+            });
+        }
+    });
+    
+    // Initialize the domain search functionality
+    const searchInput = document.getElementById('domainSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', filterDomains);
+        searchInput.addEventListener('change', filterDomains);
+    }
+    
+    // Initialize modal buttons
+    document.querySelectorAll('.modal-close').forEach(button => {
+        button.addEventListener('click', function() {
+            const modalId = this.closest('.modal').id;
+            hideModal(modalId);
+        });
+    });
+});
+
+// Status stream handling
+let eventSource = null;
+
+function startStatusStream() {
+    // Always close existing connection first
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+
+    eventSource = new EventSource('/api/status-stream');
+    
+    eventSource.addEventListener('status', (event) => {
+        const status = JSON.parse(event.data);
+        updateStatus(status);
+    });
+
+    eventSource.onerror = (error) => {
+        console.error('SSE Error:', error);
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+    };
+}
+
+function getStepEmoji(step_type) {
+    const emojis = {
+        'navigation': '→',
+        'loading': '⋯',
+        'loaded': '✓',
+        'select': '▼',
+        'input': '⌥',
+        'click': '⊙',
+        'wait': '◌',
+        'read_price': '€',
+        'calculation': '∑',
+        'complete': '★',
+        'error': '×',
+        'cleanup': '⌫',
+        'config': '⚙'
+    };
+    return emojis[step_type] || '•';
+}
+
+function formatStepDetails(status) {
+    if (!status.step_details) return '';
+    if (status.step_details === null) return '';
+
+    switch (status.step_type) {
+        case 'select':
+            const selector = status.step_details.selector || '';
+            const value = status.step_details.value?.replace('{thickness}', '')
+                .replace('{width}', '')
+                .replace('{length}', '') || '';
+            return `${selector} ${value}`;
+        case 'input':
+            return `${status.step_details.selector} = ${status.step_details.value}`;
+        case 'navigation':
+            return status.step_details.url;
+        case 'complete':
+            const excl = status.step_details.price_excl_vat.toFixed(2);
+            const incl = status.step_details.price_incl_vat.toFixed(2);
+            return `€${excl} (excl) / €${incl} (incl)`;
+        case 'config':
+            return `${status.step_details.domain}`;
+        case 'click':
+            return status.step_details.selector || '';
+        default:
+            return '';
+    }
+}
+
+function updateStatus(status) {
+    // Format timestamp
+    const timestamp = new Date(status.timestamp).toLocaleTimeString('nl-NL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    // Update logging information with compact format
+    const stepEmoji = getStepEmoji(status.step_type);
+    const stepDetails = formatStepDetails(status);
+    const logLine = `<div class="status-update">
+        <span class="timestamp">${timestamp}</span>
+        <span class="step-emoji" data-type="${status.step_type}">${stepEmoji}</span>
+        <span class="step-type">${status.step_type}</span>
+        ${stepDetails ? `<span class="step-details">${stepDetails}</span>` : ''}
+    </div>`;
+    
+    // Add log line to all logging divs
+    const loggingDivs = document.querySelectorAll('.logging-info');
+    loggingDivs.forEach(div => {
+        const content = div.querySelector('[id$="_content"]');
+        if (content) {
+            content.innerHTML += logLine;
+            // Ensure we always scroll to the latest activity
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    content.scrollTop = content.scrollHeight;
+                }, 0);
+            });
+        }
+    });
+
+    // If it's a complete or error status, close the EventSource connection
+    if (status.step_type === 'complete' || status.step_type === 'error') {
+        if (eventSource) {
+            const es = eventSource;
+            eventSource = null;
+            setTimeout(() => {
+                es.close();
+            }, 100);
+        }
+    }
+}
+
+function calculateDiff(oldConfig, newConfig) {
+    const oldStr = JSON.stringify(oldConfig, null, 2);
+    const newStr = JSON.stringify(newConfig, null, 2);
+    const diffJson = Diff.createTwoFilesPatch("previous", "current", oldStr, newStr);
+    const diff2htmlUi = new Diff2HtmlUI({diff: diffJson});
+    return diff2htmlUi.draw();
+}
+
+async function showVersions(type, id) {
+    const modal = document.getElementById('versionModal');
+    const versionList = document.getElementById('versionList');
+    const diffContainer = document.getElementById('diffContainer');
+    
+    modal.classList.remove('hidden');
+    versionList.innerHTML = '<div class="text-center">Loading versions...</div>';
+    diffContainer.innerHTML = '';
+    
+    try {
+        // Controleer of we een geldig ID hebben
+        if (!id) {
+            throw new Error('Invalid ID provided');
+        }
+
+        // Bouw de juiste endpoint URL op
+        let endpoint;
+        if (type === 'domain') {
+            // URL encode the domain to handle special characters
+            const encodedId = encodeURIComponent(id);
+            endpoint = `config/${encodedId}`;
+        } else if (type === 'country') {
+            endpoint = `country/${id}`;
+        } else if (type === 'package') {
+            // Zorg ervoor dat we een numerieke package ID gebruiken
+            const packageId = id.toString();
+            endpoint = `packages/${packageId}`;
+        } else {
+            throw new Error('Invalid type provided');
+        }
+        
+        const response = await fetch(`/api/${endpoint}/versions`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch versions');
+        }
+        
+        const data = await response.json();
+        const versions = Array.isArray(data) ? data : [];
+        
+        if (versions.length === 0) {
+            versionList.innerHTML = '<div class="text-gray-500">No version history available.</div>';
+            return;
+        }
+        
+        versionList.innerHTML = versions.map((version, index) => {
+            const isFirst = index === 0;
+            const date = new Date(version.created_at).toLocaleString('nl-NL');
+            return `
+                <div data-version-index="${index}" class="cursor-pointer hover:bg-gray-50 ${isFirst ? 'bg-blue-50' : 'bg-white'} rounded-lg p-4 mb-2" onclick="handleVersionClick(${index}, ${index + 1})">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-900">Version ${version.version}</span>
+                                ${isFirst ? '<span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">Current</span>' : ''}
+                            </div>
+                            <span class="text-xs text-gray-500 mt-1 block">${date}</span>
+                        </div>
+                        ${!isFirst ? `
+                            <button onclick="event.stopPropagation(); restoreVersion('${type}', '${id.replace(/'/g, "\\'")}', ${version.version})" class="inline-flex items-center justify-center rounded-md border border-gray-400 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                Restore
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        window.versionHistory = versions;
+        
+        if (versions.length > 1) {
+            handleVersionClick(0, 1);
+        }
+        
+    } catch (error) {
+        console.error('Error loading versions:', error);
+        versionList.innerHTML = `<div class="text-red-500">Error loading versions: ${error.message}</div>`;
+    }
+}
+
+function handleVersionClick(newIndex, oldIndex) {
+    // Update selection state in the version list
+    const versionItems = document.querySelectorAll('#versionList > div[data-version-index]');
+    versionItems.forEach(item => {
+        const index = parseInt(item.getAttribute('data-version-index'));
+        if (index === newIndex) {
+            item.classList.remove('bg-white', 'hover:bg-gray-50');
+            item.classList.add('bg-blue-50', 'ring-2', 'ring-blue-500');
+        } else {
+            item.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-500');
+            item.classList.add('bg-white', 'hover:bg-gray-50');
+        }
+    });
+
+    // Show the diff
+    showDiff(newIndex, oldIndex);
+}
+
+function showDiff(newIndex, oldIndex) {
+    const versions = window.versionHistory;
+    const diffContainer = document.getElementById('diffContainer');
+    
+    if (!versions || !versions[newIndex]) {
+        console.error('Version history not available');
+        return;
+    }
+    
+    const newVersion = versions[newIndex];
+    const oldVersion = oldIndex !== null ? versions[oldIndex] : null;
+    
+    // Create a formatted diff with "Version X" format
+    const diff = Diff.createTwoFilesPatch(
+        `Version ${oldVersion ? oldVersion.version : 'none'}`,
+        `Version ${newVersion.version}`,
+        oldVersion ? JSON.stringify(oldVersion.config, null, 2) : '',
+        JSON.stringify(newVersion.config, null, 2)
+    );
+    
+    // Clear previous diff
+    diffContainer.innerHTML = '';
+    
+    // Create a new diff2html UI instance with optimized configuration for full-screen
+    const configuration = {
+        drawFileList: false,
+        matching: 'lines',
+        highlight: true,
+        outputFormat: 'side-by-side',
+        renderNothingWhenEmpty: true,
+        maxLineSizeInBlockForComparison: 200,
+        styles: {
+            'side-by-side': true
+        }
+    };
+    
+    const diff2htmlUi = new Diff2HtmlUI(diffContainer, diff, configuration);
+    diff2htmlUi.draw();
+    
+    // Add custom styling for better full-screen display
+    const diffOutput = diffContainer.querySelector('.d2h-file-list-wrapper');
+    if (diffOutput) {
+        diffOutput.style.width = '100%';
+        diffOutput.style.maxWidth = '100%';
+    }
+}
+
+async function restoreVersion(type, id, version) {
+    if (!confirm('Are you sure you want to restore this version? This will overwrite the current configuration.')) {
+        return;
+    }
+
+    try {
+        // Controleer of we een geldig ID hebben
+        if (!id) {
+            throw new Error('Invalid ID provided');
+        }
+
+        // Bouw de juiste endpoint URL op
+        let endpoint;
+        if (type === 'domain') {
+            // URL encode the domain to handle special characters
+            const encodedId = encodeURIComponent(id);
+            endpoint = `config/${encodedId}`;
+        } else if (type === 'country') {
+            endpoint = `country/${id}`;
+        } else if (type === 'package') {
+            // Zorg ervoor dat we een numerieke package ID gebruiken
+            const packageId = id.toString();
+            endpoint = `packages/${packageId}`;
+        } else {
+            throw new Error('Invalid type provided');
+        }
+        
+        const response = await fetch(`/api/${endpoint}/restore/${version}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to restore version: ${response.statusText}`);
+        }
+
+        await showNotification('Version restored successfully', 'success');
+        location.reload();
+    } catch (error) {
+        console.error('Error restoring version:', error);
+        showNotification('Error restoring version: ' + error.message, 'error');
+    }
+}
+
+function closeVersionModal() {
+    document.getElementById('versionModal').classList.add('hidden');
+}
+
+async function deleteConfig(type, id) {
+    if (!confirm('Are you sure you want to delete this configuration?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/${type === 'domain' ? 'config' : type}/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete configuration');
+        
+        await showNotification('Configuration deleted successfully', 'success');
+        location.reload();
+    } catch (error) {
+        showNotification('Error deleting configuration: ' + error.message, 'error');
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('versionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeVersionModal();
+    }
+});
+
+function showImportCountryModal() {
+    showModal('importCountryModal');
+    document.getElementById('importCountryFile').value = '';
+}
+
+function showImportPackageModal() {
+    showModal('importPackageModal');
+    document.getElementById('importPackageFile').value = '';
+}
+
+async function importCountryConfig() {
+    try {
+        const fileInput = document.getElementById('importCountryFile');
+        const file = fileInput.files[0];
+        if (!file) {
+            throw new Error('Please select a file to import');
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                const country = config.code || config.country_code;
+                
+                if (!country) {
+                    throw new Error('Country code is required in the configuration file (use either "code" or "country_code" field)');
+                }
+                
+                const response = await fetch('/api/country', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        country: country,
+                        config: config
+                    })
+                });
+                
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to import configuration');
+                }
+
+                hideModal('importCountryModal');
+                await showNotification('Configuration imported successfully', 'success');
+                location.reload();
+            } catch (error) {
+                showNotification(`Error importing configuration: ${error.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    } catch (error) {
+        showNotification(`Error importing configuration: ${error.message}`, 'error');
+    }
+}
+
+async function importPackageConfig() {
+    try {
+        const fileInput = document.getElementById('importPackageFile');
+        const file = fileInput.files[0];
+        if (!file) {
+            throw new Error('Please select a file to import');
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                
+                if (!config.id) {
+                    throw new Error('Package ID is required in the configuration (use the "id" field)');
+                }
+        
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+            body: JSON.stringify({
+                        package_id: config.id,
+                config: config
+            })
+        });
+        
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to import configuration');
+                }
+
+                hideModal('importPackageModal');
+                await showNotification('Configuration imported successfully', 'success');
+                location.reload();
+            } catch (error) {
+                showNotification(`Error importing configuration: ${error.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    } catch (error) {
+        showNotification(`Error importing configuration: ${error.message}`, 'error');
+    }
+}
+
+async function exportConfigs() {
+    try {
+        const response = await fetch('/api/configs/export', {
+            method: 'POST'
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Export failed');
+        }
+        
+        // Get the filename from the Content-Disposition header
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : 'configs_backup.json';
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        await showNotification('Configurations exported successfully', 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showNotification(`Failed to export configurations: ${error.message}`, 'error');
+    }
+}
+
+document.getElementById('importForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = document.getElementById('configFile').files[0];
+    const clearExisting = document.getElementById('clearExisting').checked;
+    
+    if (!file) {
+        showNotification('Please select a file to import', 'error');
+        return;
+    }
+
+    try {
+        // Read and validate the file content
+        const content = await file.text();
+        const config = JSON.parse(content);
+        
+        // Validate the required structure
+        if (!config.domain_configs || !config.country_configs || !config.package_configs) {
+            throw new Error('Invalid configuration format. The file must contain domain_configs, country_configs, and package_configs arrays.');
+        }
+
+        const formData = new FormData();
+        formData.append('file', new Blob([content], { type: 'application/json' }));
+        formData.append('clear_existing', clearExisting);
+
+        const response = await fetch('/api/configs/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Import failed');
+        }
+        
+        const result = await response.json();
+        await showNotification('Configurations imported successfully', 'success');
+        hideModal('importModal');
+        location.reload();
+    } catch (error) {
+        showNotification(`Failed to import configurations: ${error.message}`, 'error');
+    }
+});
+
+document.getElementById('domainImportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = document.getElementById('domainFile').files[0];
+    
+    if (!file) {
+        showNotification('Please select a file to import', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/domains/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) throw new Error('Import failed');
+        
+        const result = await response.json();
+        await showNotification('Domains imported successfully', 'success');
+        hideModal('domainImportModal');
+        location.reload();
+    } catch (error) {
+        showNotification('Failed to import domains', 'error');
+    }
+});
+
+async function saveConfiguration(domain, category) {
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                config: {
+                    domain: domain,
+                    categories: {
+                        [category]: {
+                            steps: configs[domain].categories[category].steps
+                        }
+                    }
+                }
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showNotification('Configuration saved successfully', 'success');
+        } else {
+            throw new Error(result.error || 'Failed to save configuration');
+        }
+    } catch (error) {
+        showNotification(`Error saving configuration: ${error.message}`, 'error');
+    }
+}
+
+async function createConfiguration(domain, category) {
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                config: {
+                    domain: domain,
+                    categories: {
+                        [category]: {
+                            steps: []
+                        }
+                    }
+                }
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showNotification('Configuration created successfully', 'success');
+            location.reload();
+        } else {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+    } catch (error) {
+        showNotification(`Error creating configuration: ${error.message}`, 'error');
+    }
+}
+
+async function deleteConfiguration(domain, category) {
+    if (!confirm(`Are you sure you want to delete the configuration for ${domain} - ${category}?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/config', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                category: category
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showNotification('Configuration deleted successfully', 'success');
+            location.reload();
+        } else {
+            throw new Error(result.error || 'Failed to delete configuration');
+        }
+    } catch (error) {
+        showNotification(`Error deleting configuration: ${error.message}`, 'error');
+    }
+}
+
+async function exportConfiguration(domain, category) {
+    try {
+        const response = await fetch('/api/config/export', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                category: category
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            const blob = new Blob([JSON.stringify(result.config, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${domain}_${category}_config.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } else {
+            throw new Error(result.error || 'Failed to export configuration');
+        }
+    } catch (error) {
+        showNotification(`Error exporting configuration: ${error.message}`, 'error');
+    }
+}
+
+async function importConfiguration() {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const text = await file.text();
+            const config = JSON.parse(text);
+
+            if (!config.domain || !config.categories) {
+                throw new Error('Invalid configuration format');
+            }
+
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    domain: config.domain,
+                    config: config
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showNotification('Configuration imported successfully', 'success');
+                location.reload();
+            } else {
+                throw new Error(result.error || 'Failed to import configuration');
+            }
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                showNotification('Error importing configuration: Invalid JSON file', 'error');
+            } else {
+                showNotification(`Error importing configuration: ${error.message}`, 'error');
+            }
+        }
+    };
+
+    fileInput.click();
+}
+</script>
+{% endblock %} 

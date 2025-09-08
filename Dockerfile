@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment to production
-ENV ENV=production
+# Set environment to development
+ENV ENV="development"
 
 # Copy requirements first for better caching
 COPY requirements.txt .
@@ -45,4 +45,4 @@ exec uvicorn api:app --host 0.0.0.0 --port 8080 --timeout-keep-alive 120' > /app
 EXPOSE 8080
 
 # Start the application with the startup script
-CMD ["/app/start.sh"] 
+CMD ["/app/start.sh"]
