@@ -11,6 +11,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
+    network_mode: "host"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
       interval: 10s

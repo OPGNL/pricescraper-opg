@@ -11,8 +11,20 @@ HEADLESS = IS_PRODUCTION  # True in production, False in development
 # HEADLESS = True
 
 # Database settings
-USE_POSTGRES_LOCALLY = os.getenv('USE_POSTGRES_LOCALLY', 'true').lower() == 'true'
-LOCAL_DATABASE_URL = "postgresql://postgres:password@postgres:5432/competitor_price_watcher" if USE_POSTGRES_LOCALLY else "sqlite:///./competitor_price_watcher.db"
+def get_database_url():
+    """Get database URL from environment variables with fallback"""
+    database_url = os.getenv('DATABASE_URL')
+    if database_url:
+        return database_url
+
+    # Fallback logic
+    use_postgres_locally = os.getenv('USE_POSTGRES_LOCALLY', 'true').lower() == 'true'
+    if use_postgres_locally:
+        return os.getenv('LOCAL_POSTGRES_URL', "postgresql://postgres:password@localhost:5432/competitor_price_watcher")
+    else:
+        return os.getenv('LOCAL_SQLITE_URL', "sqlite:///./competitor_price_watcher.db")
+
+LOCAL_DATABASE_URL = get_database_url()
 
 Base = declarative_base()
 
