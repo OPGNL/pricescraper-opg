@@ -1,7 +1,6 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, Form, Response, UploadFile, File
+from fastapi import APIRouter, Request, HTTPException, Depends, Form, Response, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import json
 import os
@@ -10,7 +9,7 @@ import logging
 from app.services.price_calculator import PriceCalculator
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
-from app.database.database import get_db, init_db
+from app.database.database import get_db
 import app.services.crud as crud, app.schemas.schemas as schemas
 from datetime import datetime
 from app.services.config_manager import export_configs_to_file, import_configs_from_file
@@ -18,31 +17,10 @@ import tempfile
 from urllib.parse import unquote
 from app.core.settings import Settings
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S',
-    handlers=[
-        logging.StreamHandler(),  # Output to console
-        logging.FileHandler('app.log')  # Also save to file
-    ]
-)
+# Create router instance
+router = APIRouter()
 
-# Initialize database on startup
-init_db()
-
-# Increase timeout to 120 seconds and configure host/port
-app = FastAPI(
-    title="Competitor Price Watcher",
-    description="API for watching competitor prices",
-    version="1.0.0",
-    default_response_class=JSONResponse,
-    timeout=120,
-    host="0.0.0.0",
-    port=8080
-)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Templates for rendering HTML pages
 templates = Jinja2Templates(directory="templates")
 
 # Initialize calculator
@@ -81,7 +59,7 @@ class VersionResponse(BaseModel):
     comment: str | None
     config: dict
 
-@app.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, db: Session = Depends(get_db)):
     # Get configurations from database
     countries = {config.country_code: config.config for config in crud.get_country_configs(db)}
@@ -93,7 +71,7 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
         "packages": packages
     })
 
-@app.get("/step-editor")
+@router.get("/step-editor")
 async def step_editor(request: Request, db: Session = Depends(get_db)):
     # Get configurations from database
     domain_configs = {config.domain: config.config for config in crud.get_domain_configs(db)}
@@ -102,7 +80,7 @@ async def step_editor(request: Request, db: Session = Depends(get_db)):
         "domain_configs": domain_configs
     })
 
-@app.get("/config")
+@router.get("/config")
 async def config_page(request: Request, db: Session = Depends(get_db)):
     # Get configurations from database
     domain_configs = {config.domain: config.config for config in crud.get_domain_configs(db)}
@@ -133,7 +111,7 @@ async def config_page(request: Request, db: Session = Depends(get_db)):
         "package_configs": package_configs
     })
 
-@app.post("/api/calculate-smp")
+@router.post("/api/calculate-smp")
 async def calculate_square_meter_price(request: SquareMeterPriceRequest, db: Session = Depends(get_db)):
     try:
         dimensions = {
@@ -188,7 +166,7 @@ async def calculate_square_meter_price(request: SquareMeterPriceRequest, db: Ses
             }
         )
 
-@app.post("/api/calculate-shipping")
+@router.post("/api/calculate-shipping")
 async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get_db)):
     """Calculate shipping costs"""
     try:
@@ -271,7 +249,7 @@ async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get
             }
         )
 
-@app.get("/api/config/{domain}")
+@router.get("/api/config/{domain}")
 async def get_config(domain: str, db: Session = Depends(get_db)):
     # URL decode the domain
     decoded_domain = unquote(domain)
@@ -281,7 +259,7 @@ async def get_config(domain: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Configuration not found")
     return config.config
 
-@app.post("/api/config")
+@router.post("/api/config")
 async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
     try:
         # Save configuration to database
@@ -291,7 +269,7 @@ async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
-@app.delete("/api/config/{domain}")
+@router.delete("/api/config/{domain}")
 async def delete_config(domain: str, db: Session = Depends(get_db)):
     # URL decode the domain
     decoded_domain = unquote(domain)
@@ -300,7 +278,7 @@ async def delete_config(domain: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Configuration not found")
     return {"success": True}
 
-@app.post("/api/config/delete")
+@router.post("/api/config/delete")
 async def delete_config_by_body(request: ConfigRequest, db: Session = Depends(get_db)):
     """Delete domain configuration by providing domain in request body instead of URL path"""
     domain = request.domain
@@ -308,14 +286,14 @@ async def delete_config_by_body(request: ConfigRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Configuration not found")
     return {"success": True}
 
-@app.get("/api/country/{country}")
+@router.get("/api/country/{country}")
 async def get_country_config(country: str, db: Session = Depends(get_db)):
     config = crud.get_country_config(db, country)
     if not config:
         raise HTTPException(status_code=404, detail="Country configuration not found")
     return config.config
 
-@app.post("/api/country")
+@router.post("/api/country")
 async def save_country_config(request: CountryRequest, db: Session = Depends(get_db)):
     try:
         config = schemas.CountryConfigCreate(country_code=request.country, config=request.config)
@@ -324,19 +302,19 @@ async def save_country_config(request: CountryRequest, db: Session = Depends(get
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.delete("/api/country/{country}")
+@router.delete("/api/country/{country}")
 async def delete_country_config(country: str, db: Session = Depends(get_db)):
     if not crud.delete_country_config(db, country):
         raise HTTPException(status_code=404, detail="Country configuration not found")
     return {"success": True}
 
-@app.get("/api/packages")
+@router.get("/api/packages")
 async def get_packages(db: Session = Depends(get_db)):
     """Get all package configurations"""
     packages = {config.package_id: config.config for config in crud.get_package_configs(db)}
     return {"packages": packages}
 
-@app.get("/api/packages/{package_id}")
+@router.get("/api/packages/{package_id}")
 async def get_package(package_id: str, db: Session = Depends(get_db)):
     """Get a specific package configuration"""
     config = crud.get_package_config(db, package_id)
@@ -344,7 +322,7 @@ async def get_package(package_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Package configuration not found")
     return config.config
 
-@app.post("/api/packages")
+@router.post("/api/packages")
 async def save_package(request: PackageRequest, db: Session = Depends(get_db)):
     """Save or update a package configuration"""
     try:
@@ -354,18 +332,18 @@ async def save_package(request: PackageRequest, db: Session = Depends(get_db)):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-@app.delete("/api/packages/{package_id}")
+@router.delete("/api/packages/{package_id}")
 async def delete_package(package_id: str, db: Session = Depends(get_db)):
     """Delete a package configuration"""
     if not crud.delete_package_config(db, package_id):
         raise HTTPException(status_code=404, detail="Package configuration not found")
     return {"success": True}
 
-@app.get("/docs", response_class=HTMLResponse)
+@router.get("/docs", response_class=HTMLResponse)
 async def docs_page(request: Request):
     return templates.TemplateResponse("docs.html", {"request": request})
 
-@app.get("/config-docs", response_class=HTMLResponse)
+@router.get("/config-docs", response_class=HTMLResponse)
 async def config_docs(request: Request):
     return templates.TemplateResponse("config_docs.html", {"request": request})
 
@@ -387,9 +365,10 @@ async def price_status_stream(request: Request):
 
     return EventSourceResponse(event_generator())
 
-app.add_route("/api/status-stream", price_status_stream)
+# Add SSE route to router
+router.add_route("/api/status-stream", price_status_stream)
 
-@app.get("/api/config/{domain}/versions")
+@router.get("/api/config/{domain}/versions")
 async def get_domain_versions(domain: str, db: Session = Depends(get_db)):
     """Haal alle versies op van een domein configuratie"""
     # URL decode the domain
@@ -405,7 +384,7 @@ async def get_domain_versions(domain: str, db: Session = Depends(get_db)):
         config=v.config
     ) for v in versions]
 
-@app.post("/api/config/{domain}/restore/{version}")
+@router.post("/api/config/{domain}/restore/{version}")
 async def restore_domain_version(domain: str, version: int, db: Session = Depends(get_db)):
     """Herstel een specifieke versie van een domein configuratie"""
     # URL decode the domain
@@ -416,7 +395,7 @@ async def restore_domain_version(domain: str, version: int, db: Session = Depend
         raise HTTPException(status_code=404, detail="Version not found")
     return {"success": True}
 
-@app.get("/api/country/{country}/versions")
+@router.get("/api/country/{country}/versions")
 async def get_country_versions(country: str, db: Session = Depends(get_db)):
     """Haal alle versies op van een land configuratie"""
     versions = crud.get_config_versions(db, 'country', country)
@@ -429,7 +408,7 @@ async def get_country_versions(country: str, db: Session = Depends(get_db)):
         config=v.config
     ) for v in versions]
 
-@app.post("/api/country/{country}/restore/{version}")
+@router.post("/api/country/{country}/restore/{version}")
 async def restore_country_version(country: str, version: int, db: Session = Depends(get_db)):
     """Herstel een specifieke versie van een land configuratie"""
     config = crud.restore_config_version(db, 'country', country, version)
@@ -437,7 +416,7 @@ async def restore_country_version(country: str, version: int, db: Session = Depe
         raise HTTPException(status_code=404, detail="Version not found")
     return {"success": True}
 
-@app.get("/api/packages/{package_id}/versions")
+@router.get("/api/packages/{package_id}/versions")
 async def get_package_versions(package_id: str, db: Session = Depends(get_db)):
     """Haal alle versies op van een pakket configuratie"""
     versions = crud.get_config_versions(db, 'package', package_id)
@@ -450,7 +429,7 @@ async def get_package_versions(package_id: str, db: Session = Depends(get_db)):
         config=v.config
     ) for v in versions]
 
-@app.post("/api/packages/{package_id}/restore/{version}")
+@router.post("/api/packages/{package_id}/restore/{version}")
 async def restore_package_version(package_id: str, version: int, db: Session = Depends(get_db)):
     """Herstel een specifieke versie van een pakket configuratie"""
     config = crud.restore_config_version(db, 'package', package_id, version)
@@ -458,7 +437,7 @@ async def restore_package_version(package_id: str, version: int, db: Session = D
         raise HTTPException(status_code=404, detail="Version not found")
     return {"success": True}
 
-@app.post("/api/configs/export")
+@router.post("/api/configs/export")
 async def export_configs_endpoint(db: Session = Depends(get_db)):
     """
     Export all configurations to a JSON file and return it.
@@ -476,7 +455,7 @@ async def export_configs_endpoint(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/configs/import")
+@router.post("/api/configs/import")
 async def import_configs_endpoint(
     file: UploadFile = File(...),
     clear_existing: bool = False,
@@ -503,7 +482,7 @@ async def import_configs_endpoint(
         if 'tmp' in locals():
             os.unlink(tmp.name)
 
-@app.get("/settings", name="settings")
+@router.get("/settings", name="settings")
 async def settings_page(request: Request, db: Session = Depends(get_db)):
     """Settings page for configuring application settings"""
     # Get current settings
@@ -514,7 +493,7 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
         "api_key": api_key
     })
 
-@app.post("/settings", name="save_settings")
+@router.post("/settings", name="save_settings")
 async def save_settings(
     request: Request,
     api_key: str = Form(...),
