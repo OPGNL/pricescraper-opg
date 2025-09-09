@@ -1,6 +1,6 @@
 from logging.config import fileConfig
 import os
-from config import IS_PRODUCTION, LOCAL_DATABASE_URL
+from app.core.config import IS_PRODUCTION, LOCAL_DATABASE_URL
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -8,7 +8,7 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import your models here
-from models import Base
+from app.schemas.models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

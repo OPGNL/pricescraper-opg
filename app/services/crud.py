@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-import models
-import schemas
+import app.schemas.models as models
+import app.schemas.schemas as schemas
 
 # Domain Config operations
 def get_domain_config(db: Session, domain: str):
@@ -113,16 +113,16 @@ def delete_package_config(db: Session, package_id: str):
 
 def save_config_version(db: Session, config_type: str, config_id: str, config: dict, comment: str = None):
     """Sla een nieuwe versie op van een configuratie en behoud maximaal 5 versies"""
-    
+
     # Haal bestaande versies op
     existing_versions = db.query(models.ConfigVersion).filter(
         models.ConfigVersion.config_type == config_type,
         models.ConfigVersion.config_id == config_id
     ).order_by(models.ConfigVersion.version.desc()).all()
-    
+
     # Bepaal nieuwe versie nummer
     new_version = 1 if not existing_versions else existing_versions[0].version + 1
-    
+
     # Maak nieuwe versie
     db_version = models.ConfigVersion(
         config_type=config_type,
@@ -132,11 +132,11 @@ def save_config_version(db: Session, config_type: str, config_id: str, config: d
         comment=comment
     )
     db.add(db_version)
-    
+
     # Verwijder oudste versie als er meer dan 5 zijn
     if len(existing_versions) >= 5:
         db.delete(existing_versions[-1])
-    
+
     db.commit()
     return db_version
 
@@ -155,10 +155,10 @@ def restore_config_version(db: Session, config_type: str, config_id: str, versio
         models.ConfigVersion.config_id == config_id,
         models.ConfigVersion.version == version
     ).first()
-    
+
     if not db_version:
         return None
-        
+
     # Update de huidige configuratie
     if config_type == 'domain':
         config = create_domain_config(db, schemas.DomainConfigCreate(
@@ -177,5 +177,5 @@ def restore_config_version(db: Session, config_type: str, config_id: str, versio
         ))
     else:
         return None
-        
-    return config 
+
+    return config

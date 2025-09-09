@@ -4,8 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional, Dict
-from scraper import MaterialScraper
-from price_calculator import PriceCalculator
+from app.services.scraper import MaterialScraper
+from app.services.price_calculator import PriceCalculator
 
 app = FastAPI(
     title="Materiaal Prijs API",
@@ -50,16 +50,16 @@ async def root(request: Request):
 async def analyze_url(input: URLInput):
     """
     Analyseert een URL om dimensie velden te vinden
-    
+
     - **url**: De URL van de productpagina om te analyseren
-    
+
     Returns:
         - De gevonden dimensie velden (dikte, lengte, breedte, prijs)
     """
     try:
         scraper = MaterialScraper()
         results = await scraper.analyze_form_fields(input.url)
-        
+
         return AnalyzeResponse(
             url=input.url,
             dimension_fields=results['dimension_fields']
@@ -69,4 +69,4 @@ async def analyze_url(input: URLInput):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080) 
+    uvicorn.run(app, host="0.0.0.0", port=8080)

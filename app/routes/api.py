@@ -7,16 +7,16 @@ import json
 import os
 import asyncio
 import logging
-from price_calculator import PriceCalculator
+from app.services.price_calculator import PriceCalculator
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
-from database import get_db, init_db
-import crud, schemas
+from app.database.database import get_db, init_db
+import app.services.crud as crud, app.schemas.schemas as schemas
 from datetime import datetime
-from config_manager import export_configs_to_file, import_configs_from_file
+from app.services.config_manager import export_configs_to_file, import_configs_from_file
 import tempfile
 from urllib.parse import unquote
-from settings import Settings
+from app.core.settings import Settings
 
 # Configure logging
 logging.basicConfig(
@@ -86,9 +86,9 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
     # Get configurations from database
     countries = {config.country_code: config.config for config in crud.get_country_configs(db)}
     packages = {config.package_id: config.config for config in crud.get_package_configs(db)}
-    
+
     return templates.TemplateResponse("index.html", {
-        "request": request, 
+        "request": request,
         "countries": countries,
         "packages": packages
     })
@@ -108,7 +108,7 @@ async def config_page(request: Request, db: Session = Depends(get_db)):
     domain_configs = {config.domain: config.config for config in crud.get_domain_configs(db)}
     country_configs = {config.country_code: config.config for config in crud.get_country_configs(db)}
     package_configs = {config.package_id: config.config for config in crud.get_package_configs(db)}
-    
+
     # Group domains by extension
     domains_by_extension = {}
     for domain, config in domain_configs.items():
@@ -124,7 +124,7 @@ async def config_page(request: Request, db: Session = Depends(get_db)):
             if 'other' not in domains_by_extension:
                 domains_by_extension['other'] = []
             domains_by_extension['other'].append((domain, config))
-    
+
     return templates.TemplateResponse("config.html", {
         "request": request,
         "domain_configs": domain_configs,
@@ -142,19 +142,19 @@ async def calculate_square_meter_price(request: SquareMeterPriceRequest, db: Ses
             'width': request.breedte,
             'quantity': request.quantity  # Voeg quantity toe aan dimensions
         }
-        
+
         price_excl_vat, price_incl_vat = await calculator.calculate_price(
-            request.url, 
-            dimensions, 
+            request.url,
+            dimensions,
             country=request.country,
             category='square_meter_price'
         )
-        
+
         country_config = crud.get_country_config(db, request.country)
         if not country_config:
             country_config = crud.get_country_config(db, 'nl')  # Fallback to NL
         country_info = country_config.config
-        
+
         return {
             "status": "success",
             "status_code": 200,
@@ -198,10 +198,10 @@ async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get
             raise ValueError(f"Invalid package type: {request.package_type}. Must be between 1 and 6.")
 
         package = package_config.config
-        
+
         # Determine the quantity to use (from request or from package config)
         actual_quantity = request.quantity if request.quantity is not None else package['quantity']
-        
+
         # Create detailed dimensions object with all parameters from the package config
         dimensions = {
             'package_type': package_id,  # Add package_type to dimensions
@@ -213,22 +213,22 @@ async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get
             'description': package['description'],
             'display': package['display']
         }
-        
+
         # Log the complete dimensions for debugging
         logging.info(f"Using package dimensions for calculation: {dimensions}")
-        
+
         price_excl_vat, price_incl_vat = await calculator.calculate_price(
-            request.url, 
-            dimensions, 
+            request.url,
+            dimensions,
             country=request.country,
             category='shipping'
         )
-        
+
         country_config = crud.get_country_config(db, request.country)
         if not country_config:
             country_config = crud.get_country_config(db, 'nl')  # Fallback to NL
         country_info = country_config.config
-        
+
         return {
             "status": "success",
             "status_code": 200,
@@ -275,7 +275,7 @@ async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get
 async def get_config(domain: str, db: Session = Depends(get_db)):
     # URL decode the domain
     decoded_domain = unquote(domain)
-    
+
     config = crud.get_domain_config(db, decoded_domain)
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
@@ -295,7 +295,7 @@ async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
 async def delete_config(domain: str, db: Session = Depends(get_db)):
     # URL decode the domain
     decoded_domain = unquote(domain)
-    
+
     if not crud.delete_domain_config(db, decoded_domain):
         raise HTTPException(status_code=404, detail="Configuration not found")
     return {"success": True}
@@ -375,14 +375,14 @@ async def price_status_stream(request: Request):
         while True:
             if await request.is_disconnected():
                 break
-            
+
             if PriceCalculator.latest_status:
                 yield {
                     "event": "status",
                     "data": json.dumps(PriceCalculator.latest_status)
                 }
                 PriceCalculator.latest_status = None
-            
+
             await asyncio.sleep(0.1)
 
     return EventSourceResponse(event_generator())
@@ -394,7 +394,7 @@ async def get_domain_versions(domain: str, db: Session = Depends(get_db)):
     """Haal alle versies op van een domein configuratie"""
     # URL decode the domain
     decoded_domain = unquote(domain)
-    
+
     versions = crud.get_config_versions(db, 'domain', decoded_domain)
     if not versions:
         raise HTTPException(status_code=404, detail="No versions found")
@@ -410,7 +410,7 @@ async def restore_domain_version(domain: str, version: int, db: Session = Depend
     """Herstel een specifieke versie van een domein configuratie"""
     # URL decode the domain
     decoded_domain = unquote(domain)
-    
+
     config = crud.restore_config_version(db, 'domain', decoded_domain, version)
     if not config:
         raise HTTPException(status_code=404, detail="Version not found")
@@ -491,10 +491,10 @@ async def import_configs_endpoint(
             content = await file.read()
             tmp.write(content)
             tmp.flush()
-            
+
             # Import the configurations
             import_configs_from_file(db, tmp.name, clear_existing)
-            
+
         return {"message": "Configurations imported successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -508,7 +508,7 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
     """Settings page for configuring application settings"""
     # Get current settings
     api_key = Settings.get_value(db, '2captcha_api_key', '')
-    
+
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "api_key": api_key
@@ -525,4 +525,4 @@ async def save_settings(
         Settings.set_value(db, '2captcha_api_key', api_key)
         return {"success": True, "message": "Settings saved successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))

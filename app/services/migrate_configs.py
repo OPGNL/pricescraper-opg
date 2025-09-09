@@ -1,8 +1,8 @@
 import os
 import json
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
-import models
+from app.database.database import SessionLocal, engine
+import app.schemas.models as models
 import glob
 
 def migrate_domain_configs():
@@ -14,7 +14,7 @@ def migrate_domain_configs():
             with open(config_file) as f:
                 config = json.load(f)
                 domain = config['domain']
-                
+
                 # Maak nieuwe database entry
                 db_config = models.DomainConfig(
                     domain=domain,
@@ -22,7 +22,7 @@ def migrate_domain_configs():
                 )
                 db.add(db_config)
                 print(f"Migrated domain config: {domain}")
-        
+
         db.commit()
     except Exception as e:
         print(f"Error migrating domain configs: {e}")
@@ -44,7 +44,7 @@ def migrate_country_configs():
                 )
                 db.add(db_config)
                 print(f"Migrated country config: {country_code}")
-        
+
         db.commit()
     except Exception as e:
         print(f"Error migrating country configs: {e}")
@@ -66,7 +66,7 @@ def migrate_package_configs():
                 )
                 db.add(db_config)
                 print(f"Migrated package config: {package_id}")
-        
+
         db.commit()
     except Exception as e:
         print(f"Error migrating package configs: {e}")
@@ -77,15 +77,15 @@ def migrate_package_configs():
 if __name__ == "__main__":
     # Maak de database tabellen aan (voor het geval dat)
     models.Base.metadata.create_all(bind=engine)
-    
+
     # Migreer alle configuraties
     print("Migrating domain configs...")
     migrate_domain_configs()
-    
+
     print("\nMigrating country configs...")
     migrate_country_configs()
-    
+
     print("\nMigrating package configs...")
     migrate_package_configs()
-    
-    print("\nMigration completed!") 
+
+    print("\nMigration completed!")

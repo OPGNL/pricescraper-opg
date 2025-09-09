@@ -7,13 +7,13 @@ import json
 import asyncio
 from urllib.parse import urlparse
 from datetime import datetime
-from database import SessionLocal
-import crud
-from config import HEADLESS
+from app.database.database import SessionLocal
+import app.services.crud as crud
+from app.core.config import HEADLESS
 import random
 import string
 from twocaptcha import TwoCaptcha
-from config import Settings
+from app.core.config import Settings
 
 logging.basicConfig(level=logging.INFO)
 
