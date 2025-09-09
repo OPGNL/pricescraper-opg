@@ -15,8 +15,6 @@ import string
 from twocaptcha import TwoCaptcha
 from app.core.config import Settings
 
-logging.basicConfig(level=logging.INFO)
-
 class PriceCalculator:
     """Calculate prices based on dimensions for different domains"""
 

@@ -1,12 +1,30 @@
+import logging
+import os
+from pathlib import Path
+
+# Get the project root directory (parent of app directory)
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+
+# Configure logging FIRST, before any other imports that might trigger module-level code
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S',
+    handlers=[
+        logging.StreamHandler(),  # Output to console
+        logging.FileHandler(BASE_DIR / 'app.log')  # Also save to file in project root
+    ]
+)
+
+# Now import everything else (after logging is configured)
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Dict
-import logging
-import os
-from pathlib import Path
 from app.services.scraper import MaterialScraper
 from app.database.database import init_db
 from app.routes.web import router as web_router
@@ -17,22 +35,6 @@ from app.routes.package_config import router as package_router
 from app.routes.version_management import router as version_router
 from app.routes.config_management import router as config_mgmt_router
 from app.routes.settings import router as settings_router
-
-# Get the project root directory (parent of app directory)
-BASE_DIR = Path(__file__).resolve().parent.parent
-STATIC_DIR = BASE_DIR / "static"
-TEMPLATES_DIR = BASE_DIR / "templates"
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S',
-    handlers=[
-        logging.StreamHandler(),  # Output to console
-        logging.FileHandler('app.log')  # Also save to file
-    ]
-)
 
 # Initialize database on startup
 init_db()

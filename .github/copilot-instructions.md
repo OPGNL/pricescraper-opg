@@ -23,8 +23,20 @@ This is a sophisticated web scraping application for competitor price monitoring
 
 ## Development Workflows
 
+### Virtual Environment Setup
+**IMPORTANT**: Always activate the virtual environment before running any Python commands or scripts:
+```bash
+# Activate virtual environment (REQUIRED before any Python commands)
+source .venv/bin/activate  # macOS/Linux
+# or
+.venv\Scripts\activate     # Windows
+```
+
 ### Database Operations
 ```bash
+# Activate virtual environment first!
+source .venv/bin/activate
+
 # Create new migration
 alembic revision --autogenerate -m "description"
 
@@ -47,6 +59,9 @@ npm run watch
 
 ### Running the Application
 ```bash
+# Activate virtual environment first!
+source .venv/bin/activate
+
 # Start development server
 uvicorn app.main:app --reload --port 8080
 
@@ -114,3 +129,4 @@ The scraping engine uses a step-based configuration system. Common step types:
 - Do only what the user tells you to do.
 - Do not write any test files or CLI commands.
 - Never write any fallback logic; we want the original implementation to work.
+- **ALWAYS activate the virtual environment (`source .venv/bin/activate`) before running any Python commands or scripts.**
