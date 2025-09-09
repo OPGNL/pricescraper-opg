@@ -14,7 +14,7 @@ logging.basicConfig(
     datefmt='%H:%M:%S',
     handlers=[
         logging.StreamHandler(),  # Output to console
-        logging.FileHandler(BASE_DIR / 'app.log')  # Also save to file in project root
+        logging.FileHandler(BASE_DIR / 'debug.log')  # Also save to file in project root
     ]
 )
 
