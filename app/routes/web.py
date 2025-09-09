@@ -75,3 +75,8 @@ async def docs_page(request: Request):
 @router.get("/config-docs", response_class=HTMLResponse)
 async def config_docs(request: Request):
     return templates.TemplateResponse("config_docs.html", {"request": request})
+
+@router.get("/analyzer", response_class=HTMLResponse)
+async def analyzer_page(request: Request):
+    """Serve the configuration analyzer interface"""
+    return templates.TemplateResponse("config_analyzer.html", {"request": request})

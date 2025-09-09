@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Configuration Analyzer</title>
+    <link href="/static/css/output.css" rel="stylesheet">
+    <style>
+        .confidence-bar {
+            height: 4px;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .confidence-high { background-color: #10b981; }
+        .confidence-medium { background-color: #f59e0b; }
+        .confidence-low { background-color: #ef4444; }
+
+        .element-card {
+            transition: all 0.2s ease;
+        }
+        .element-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .step-preview {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">Website Configuration Analyzer</h1>
+            <p class="text-gray-600 text-lg">Automatically analyze websites and generate scraping configurations</p>
+        </div>
+
+        <!-- URL Input Section -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Analyze Website</h2>
+            <div class="flex gap-4">
+                <input
+                    type="url"
+                    id="website-url"
+                    placeholder="Enter website URL (e.g., https://example.com/product)"
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value="https://expresszuschnitt.de/acrylglas-gs-klar"
+                >
+                <button
+                    onclick="analyzeWebsite()"
+                    id="analyze-btn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                >
+                    Analyze
+                </button>
+            </div>
+            <div class="mt-4 flex items-center gap-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="deep-analysis" checked class="mr-2">
+                    <span class="text-sm text-gray-600">Deep analysis (slower but more accurate)</span>
+                </label>
+                <label class="flex items-center">
+                    <input type="checkbox" id="include-suggestions" checked class="mr-2">
+                    <span class="text-sm text-gray-600">Include configuration suggestions</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loading-section" class="hidden bg-white rounded-lg shadow-lg p-8 text-center mb-8">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Analyzing Website...</h3>
+            <p class="text-gray-600">This may take 10-30 seconds depending on the website complexity.</p>
+            <div class="mt-4 bg-gray-200 rounded-full h-2">
+                <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-section" class="hidden">
+            <!-- Analysis Summary -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h2 class="text-2xl font-semibold">Analysis Results</h2>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-500">Overall Confidence</div>
+                        <div class="text-2xl font-bold" id="overall-confidence">--</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600" id="form-fields-count">0</div>
+                        <div class="text-sm text-gray-600">Form Fields</div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600" id="interactive-elements-count">0</div>
+                        <div class="text-sm text-gray-600">Interactive Elements</div>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-yellow-600" id="price-elements-count">0</div>
+                        <div class="text-sm text-gray-600">Price Elements</div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-purple-600" id="suggested-steps-count">0</div>
+                        <div class="text-sm text-gray-600">Suggested Steps</div>
+                    </div>
+                </div>
+
+                <!-- Warnings -->
+                <div id="warnings-section" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <h3 class="font-medium text-yellow-800 mb-2">⚠️ Warnings</h3>
+                    <ul id="warnings-list" class="text-sm text-yellow-700 space-y-1"></ul>
+                </div>
+
+                <!-- Industry Detection -->
+                <div id="industry-section" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 class="font-medium text-green-800 mb-2">🏭 Industry Detected</h3>
+                    <div id="industry-tags" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+
+            <!-- Detected Elements -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Form Fields -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">Form Fields</h3>
+                    <div id="form-fields-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                </div>
+
+                <!-- Interactive Elements -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold mb-4">Interactive Elements</h3>
+                    <div id="interactive-elements-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- Price Elements -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-xl font-semibold mb-4">Price Elements</h3>
+                <div id="price-elements-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto"></div>
+            </div>
+
+            <!-- Suggested Configuration -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Suggested Configuration</h3>
+                    <div class="flex gap-2">
+                        <button onclick="previewConfiguration()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm">
+                            Preview
+                        </button>
+                        <button onclick="exportConfiguration()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">
+                            Export JSON
+                        </button>
+                        <button onclick="saveConfiguration()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                            Save to Database
+                        </button>
+                    </div>
+                </div>
+                <div id="suggested-config-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- Configuration Preview Modal -->
+        <div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-semibold">Configuration Preview</h3>
+                            <button onclick="closePreviewModal()" class="text-gray-500 hover:text-gray-700">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="preview-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAnalysisId = null;
+        let analysisResults = null;
+
+        async function analyzeWebsite() {
+            const url = document.getElementById('website-url').value;
+            const deepAnalysis = document.getElementById('deep-analysis').checked;
+            const includeSuggestions = document.getElementById('include-suggestions').checked;
+
+            if (!url) {
+                alert('Please enter a website URL');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('loading-section').classList.remove('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('analyze-btn').disabled = true;
+
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                document.getElementById('progress-bar').style.width = progress + '%';
+            }, 500);
+
+            try {
+                const response = await fetch('/api/analyzer/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        deep_analysis: deepAnalysis,
+                        include_suggestions: includeSuggestions
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentAnalysisId = data.analysis_id;
+                    analysisResults = data;
+                    displayResults(data);
+                } else {
+                    throw new Error(data.detail || 'Analysis failed');
+                }
+
+            } catch (error) {
+                console.error('Analysis error:', error);
+                alert('Error analyzing website: ' + error.message);
+            } finally {
+                clearInterval(progressInterval);
+                document.getElementById('progress-bar').style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('loading-section').classList.add('hidden');
+                    document.getElementById('analyze-btn').disabled = false;
+                }, 500);
+            }
+        }
+
+        function displayResults(data) {
+            document.getElementById('results-section').classList.remove('hidden');
+
+            // Update summary stats
+            document.getElementById('overall-confidence').textContent = (data.confidence_score * 100).toFixed(1) + '%';
+            document.getElementById('form-fields-count').textContent = data.form_fields.length;
+            document.getElementById('interactive-elements-count').textContent = data.interactive_elements.length;
+            document.getElementById('price-elements-count').textContent = data.price_elements.length;
+            document.getElementById('suggested-steps-count').textContent = data.suggested_config.length;
+
+            // Display warnings
+            if (data.warnings && data.warnings.length > 0) {
+                document.getElementById('warnings-section').classList.remove('hidden');
+                const warningsList = document.getElementById('warnings-list');
+                warningsList.innerHTML = '';
+                data.warnings.forEach(warning => {
+                    const li = document.createElement('li');
+                    li.textContent = warning;
+                    warningsList.appendChild(li);
+                });
+            }
+
+            // Display industry tags
+            if (data.industry_detected && data.industry_detected.length > 0) {
+                document.getElementById('industry-section').classList.remove('hidden');
+                const industryTags = document.getElementById('industry-tags');
+                industryTags.innerHTML = '';
+                data.industry_detected.forEach(industry => {
+                    const tag = document.createElement('span');
+                    tag.className = 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm';
+                    tag.textContent = industry.replace('_', ' ');
+                    industryTags.appendChild(tag);
+                });
+            }
+
+            // Display form fields
+            displayElements(data.form_fields, 'form-fields-list', 'form');
+
+            // Display interactive elements
+            displayElements(data.interactive_elements, 'interactive-elements-list', 'interactive');
+
+            // Display price elements
+            displayElements(data.price_elements, 'price-elements-list', 'price');
+
+            // Display suggested configuration
+            displaySuggestedConfig(data.suggested_config);
+        }
+
+        function displayElements(elements, containerId, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            elements.forEach((element, index) => {
+                const card = document.createElement('div');
+                card.className = 'element-card bg-gray-50 p-4 rounded-lg border hover:border-blue-300 cursor-pointer';
+
+                const confidenceClass = element.confidence > 0.7 ? 'confidence-high' :
+                                      element.confidence > 0.4 ? 'confidence-medium' : 'confidence-low';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-medium text-gray-900">${element.purpose || element.element_type || 'Unknown'}</div>
+                        <div class="text-sm text-gray-500">${(element.confidence * 100).toFixed(0)}%</div>
+                    </div>
+                    <div class="confidence-bar ${confidenceClass} mb-2" style="width: ${element.confidence * 100}%"></div>
+                    <div class="text-sm text-gray-600 mb-2">${element.selector}</div>
+                    ${element.text ? `<div class="text-xs text-gray-500 truncate">"${element.text}"</div>` : ''}
+                `;
+
+                card.onclick = () => selectElement(element, card);
+                container.appendChild(card);
+            });
+        }
+
+        function displaySuggestedConfig(steps) {
+            const container = document.getElementById('suggested-config-list');
+            container.innerHTML = '';
+
+            steps.forEach((step, index) => {
+                const stepCard = document.createElement('div');
+                stepCard.className = 'bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200';
+
+                const confidenceClass = step.confidence > 0.7 ? 'confidence-high' :
+                                      step.confidence > 0.4 ? 'confidence-medium' : 'confidence-low';
+
+                stepCard.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-medium">
+                                ${index + 1}
+                            </div>
+                            <div class="font-medium text-gray-900">${step.type.toUpperCase()}</div>
+                        </div>
+                        <div class="text-sm text-gray-500">${step.confidence ? (step.confidence * 100).toFixed(0) + '%' : ''}</div>
+                    </div>
+                    <div class="ml-9">
+                        <div class="text-sm text-gray-700 mb-1">${step.description || 'No description'}</div>
+                        <div class="text-xs text-gray-500 font-mono">${step.selector || ''}</div>
+                        ${step.value ? `<div class="text-xs text-blue-600 mt-1">Value: ${step.value}</div>` : ''}
+                        ${step.confidence ? `<div class="confidence-bar ${confidenceClass} mt-2" style="width: ${step.confidence * 100}%"></div>` : ''}
+                    </div>
+                `;
+
+                container.appendChild(stepCard);
+            });
+        }
+
+        function selectElement(element, cardElement) {
+            // Toggle selection
+            cardElement.classList.toggle('border-blue-500');
+            cardElement.classList.toggle('bg-blue-50');
+        }
+
+        async function previewConfiguration() {
+            if (!currentAnalysisId) return;
+
+            try {
+                const response = await fetch(`/api/analyzer/config-preview/${currentAnalysisId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayPreview(data.preview);
+                    document.getElementById('preview-modal').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Preview error:', error);
+                alert('Error generating preview: ' + error.message);
+            }
+        }
+
+        function displayPreview(preview) {
+            const content = document.getElementById('preview-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600">${preview.total_steps}</div>
+                            <div class="text-sm text-gray-600">Total Steps</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">${preview.estimated_execution_time}s</div>
+                            <div class="text-sm text-gray-600">Est. Time</div>
+                        </div>
+                        <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-yellow-600">${(preview.complexity_score * 100).toFixed(0)}%</div>
+                            <div class="text-sm text-gray-600">Complexity</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-purple-600">${Object.keys(preview.steps_breakdown).length}</div>
+                            <div class="text-sm text-gray-600">Step Types</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-900 mb-2">Step Breakdown</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            ${Object.entries(preview.steps_breakdown).map(([type, count]) =>
+                                `<div class="text-sm"><span class="font-medium">${type}:</span> ${count}</div>`
+                            ).join('')}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-3">Execution Timeline</h4>
+                        <div class="space-y-2">
+                            ${preview.steps.map(step => `
+                                <div class="flex items-center gap-3 p-3 bg-white rounded border">
+                                    <div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+                                        ${step.step_number}
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-sm">${step.type.toUpperCase()}: ${step.description}</div>
+                                        <div class="text-xs text-gray-500">${step.selector}</div>
+                                    </div>
+                                    <div class="text-xs text-gray-500">${step.estimated_time}s</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.add('hidden');
+        }
+
+        function exportConfiguration() {
+            if (!analysisResults) return;
+
+            const config = {
+                domain: analysisResults.domain,
+                steps: analysisResults.suggested_config,
+                generated_at: new Date().toISOString(),
+                confidence: analysisResults.confidence_score
+            };
+
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${analysisResults.domain}_config.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function saveConfiguration() {
+            if (!currentAnalysisId) return;
+
+            const domainName = prompt('Enter domain name for the configuration:');
+            if (!domainName) return;
+
+            try {
+                const response = await fetch('/api/analyzer/generate-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        analysis_id: currentAnalysisId,
+                        selected_elements: [], // Add logic to get selected elements
+                        domain_name: domainName,
+                        category: 'square_meter_price'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Configuration saved successfully!');
+                } else {
+                    throw new Error(data.detail || 'Save failed');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                alert('Error saving configuration: ' + error.message);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('preview-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePreviewModal();
+            }
+        });
+
+        // Handle Enter key in URL input
+        document.getElementById('website-url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeWebsite();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -35,6 +35,7 @@ from app.routes.package_config import router as package_router
 from app.routes.version_management import router as version_router
 from app.routes.config_management import router as config_mgmt_router
 from app.routes.settings import router as settings_router
+from app.routes.analyzer_routes import router as analyzer_router
 
 # Initialize database on startup
 init_db()
@@ -62,6 +63,7 @@ app.include_router(package_router)
 app.include_router(version_router)
 app.include_router(config_mgmt_router)
 app.include_router(settings_router)
+app.include_router(analyzer_router)
 
 # Templates for HTML interface (kept for backward compatibility if needed)
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
