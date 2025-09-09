@@ -31,7 +31,7 @@ Base = declarative_base()
 # Initialize database
 def init_db():
     # Import all models here to avoid circular imports
-    from app.schemas.models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
+    from app.models.models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
 
     # Check if tables exist
     inspector = inspect(engine)

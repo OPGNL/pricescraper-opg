@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
-from app.schemas.models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
+from app.models.models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
 
 def export_configs(db: Session) -> Dict:
     """

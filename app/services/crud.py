@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-import app.schemas.models as models
+import app.models.models as models
 import app.schemas.schemas as schemas
 
 # Domain Config operations

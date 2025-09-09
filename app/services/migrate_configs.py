@@ -2,7 +2,7 @@ import os
 import json
 from sqlalchemy.orm import Session
 from app.database.database import SessionLocal, engine
-import app.schemas.models as models
+import app.models.models as models
 import glob
 
 def migrate_domain_configs():
