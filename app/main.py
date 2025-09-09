@@ -5,9 +5,23 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Dict
 import logging
+import os
+from pathlib import Path
 from app.services.scraper import MaterialScraper
 from app.database.database import init_db
-from app.routes.api import router
+from app.routes.web import router as web_router
+from app.routes.price_calculation import router as price_router
+from app.routes.domain_config import router as domain_router
+from app.routes.country_config import router as country_router
+from app.routes.package_config import router as package_router
+from app.routes.version_management import router as version_router
+from app.routes.config_management import router as config_mgmt_router
+from app.routes.settings import router as settings_router
+
+# Get the project root directory (parent of app directory)
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
 
 # Configure logging
 logging.basicConfig(
@@ -35,13 +49,20 @@ app = FastAPI(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# Include API routes
-app.include_router(router)
+# Include all routers
+app.include_router(web_router)
+app.include_router(price_router)
+app.include_router(domain_router)
+app.include_router(country_router)
+app.include_router(package_router)
+app.include_router(version_router)
+app.include_router(config_mgmt_router)
+app.include_router(settings_router)
 
 # Templates for HTML interface (kept for backward compatibility if needed)
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Legacy models for backward compatibility
 class URLInput(BaseModel):
