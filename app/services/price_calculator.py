@@ -221,12 +221,27 @@ class PriceCalculator:
                     self._update_status(f"Navigating to {url}", "navigation", {"url": url})
                     await page.goto(url)
 
-                    self._update_status("Waiting for page to be fully loaded", "loading")
-                    await page.wait_for_load_state('networkidle')
-                    self._update_status("Page loaded successfully", "loaded")
-
                     # Execute steps
                     steps = config['categories'][category]['steps']
+
+                    # Wait for the first CSS class selector in the config instead of networkidle
+                    first_css_class_selector = None
+                    first_id_selector = None
+                    for step in steps:
+                        if 'selector' in step and step['selector'].startswith('#'):
+                            first_id_selector = step['selector']
+                        if 'selector' in step and step['selector'].startswith('.'):
+                            first_css_class_selector = step['selector']
+
+                    if first_id_selector:
+                        self._update_status(f"Waiting for first ID selector: {first_id_selector}", "loading")
+                        await page.wait_for_selector(first_id_selector, timeout=30000)
+                        self._update_status("Page loaded successfully", "loaded")
+                    elif first_css_class_selector:
+                        self._update_status(f"Waiting for first CSS class selector: {first_css_class_selector}", "loading")
+                        await page.wait_for_selector(first_css_class_selector, timeout=30000)
+                        self._update_status("No ID selector found in steps, page ready", "loaded")
+
                     for step in steps:
                         try:
                             # Add random mouse movements before each action
