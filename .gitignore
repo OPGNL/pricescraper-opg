@@ -102,3 +102,6 @@ __pycache__/
 static/
 
 debug.log
+
+# Local development scripts (do not commit)
+start_local.sh
