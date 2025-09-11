@@ -963,11 +963,36 @@ class PriceCalculator:
                     self._update_status(f"Failed to set input after {max_retries} attempts", "error")
                     raise
 
-    async def _handle_click(self, page, step):
+    async def _handle_click(self, page, step, dimensions=None):
         """Handle a click step"""
         selector = step['selector']
         description = step.get('description', '')
         max_retries = 3
+
+        # Support dynamic selector creation with variable substitution
+        if dimensions and '{' in selector and '}' in selector:
+            original_selector = selector
+            for key in ['thickness', 'width', 'length', 'quantity']:
+                if f"{{{key}}}" in selector:
+                    if key in dimensions:
+                        # Convert value and substitute
+                        value = dimensions[key]
+                        unit = step.get('unit', 'mm')
+                        converted_value = self._convert_value(value, unit)
+
+                        # Convert to integer if it's a whole number
+                        if isinstance(converted_value, float) and converted_value.is_integer():
+                            converted_value = int(converted_value)
+
+                        selector = selector.replace(f"{{{key}}}", str(converted_value))
+                        self._update_status(
+                            f"Dynamic selector: replaced {{{key}}} with {converted_value}",
+                            "click",
+                            {"original_selector": original_selector, "final_selector": selector}
+                        )
+                    else:
+                        self._update_status(f"Dimension {key} not found for dynamic selector", "error")
+                        raise ValueError(f"Dimension {key} not found in dimensions dict")
 
         # Add more descriptive messages for specific actions
         if 'figure' in selector.lower():
@@ -976,13 +1001,15 @@ class PriceCalculator:
             self._update_status(f"Opening calculator section", "click", {"selector": selector})
         elif 'winkelwagen' in selector.lower() or '.cart' in selector.lower():
             self._update_status(f"Adding to shopping cart", "click", {"selector": selector})
+        elif 'data-key' in selector:
+            self._update_status(f"Selecting element with data-key", "click", {"selector": selector})
         else:
             self._update_status(f"Clicking {selector}", "click", {"selector": selector})
 
         for attempt in range(max_retries):
             try:
                 # Wacht langer op het element
-                element = await page.wait_for_selector(selector)
+                element = await page.wait_for_selector(selector, timeout=30000)
                 if not element:
                     raise ValueError(f"Element not found: {selector}")
 
@@ -1704,7 +1731,7 @@ class PriceCalculator:
             elif step_type == 'input':
                 await self._handle_input(page, step, dimensions)
             elif step_type == 'click':
-                await self._handle_click(page, step)
+                await self._handle_click(page, step, dimensions)
             elif step_type == 'wait':
                 await self._handle_wait(page, step)
             elif step_type == 'blur':
