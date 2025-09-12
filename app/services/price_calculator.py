@@ -224,23 +224,24 @@ class PriceCalculator:
                     # Execute steps
                     steps = config['categories'][category]['steps']
 
-                    # Wait for the first CSS class selector in the config instead of networkidle
-                    first_css_class_selector = None
-                    first_id_selector = None
-                    for step in steps:
-                        if 'selector' in step and step['selector'].startswith('#'):
-                            first_id_selector = step['selector']
-                        if 'selector' in step and step['selector'].startswith('.'):
-                            first_css_class_selector = step['selector']
+                    # Wait for page to be ready using multiple strategies
+                    self._update_status("Waiting for page to load completely", "loading")
 
-                    if first_id_selector:
-                        self._update_status(f"Waiting for first ID selector: {first_id_selector}", "loading")
-                        await page.wait_for_selector(first_id_selector, timeout=30000)
-                        self._update_status("Page loaded successfully", "loaded")
-                    elif first_css_class_selector:
-                        self._update_status(f"Waiting for first CSS class selector: {first_css_class_selector}", "loading")
-                        await page.wait_for_selector(first_css_class_selector, timeout=30000)
-                        self._update_status("No ID selector found in steps, page ready", "loaded")
+                    try:
+                        # Strategy 1: Wait for network idle (most reliable for dynamic content)
+                        await page.wait_for_load_state('networkidle', timeout=15000)
+                        self._update_status("Page loaded successfully (networkidle)", "loaded")
+                    except:
+                        try:
+                            # Strategy 2: Wait for DOM content to be loaded
+                            await page.wait_for_load_state('domcontentloaded', timeout=10000)
+                            # Give a bit more time for any remaining dynamic content
+                            await asyncio.sleep(2)
+                            self._update_status("Page loaded successfully (domcontentloaded)", "loaded")
+                        except:
+                            # Strategy 3: Fallback - just wait a reasonable amount of time
+                            await asyncio.sleep(3)
+                            self._update_status("Page load timeout, proceeding anyway", "loaded")
 
                     for step in steps:
                         try:
@@ -967,7 +968,7 @@ class PriceCalculator:
         """Handle a click step"""
         selector = step['selector']
         description = step.get('description', '')
-        max_retries = 3
+        max_retries = 2
 
         # Support dynamic selector creation with variable substitution
         if dimensions and '{' in selector and '}' in selector:
@@ -1009,7 +1010,7 @@ class PriceCalculator:
         for attempt in range(max_retries):
             try:
                 # Wacht langer op het element
-                element = await page.wait_for_selector(selector, timeout=30000)
+                element = await page.wait_for_selector(selector)
                 if not element:
                     raise ValueError(f"Element not found: {selector}")
 
