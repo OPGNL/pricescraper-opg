@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, JSON, DateTime, Index
 from sqlalchemy.sql import func
-from database import Base
+from app.database.database import Base
 from datetime import datetime
 
 class DomainConfig(Base):
@@ -74,4 +74,4 @@ class Settings(Base):
         else:
             setting = Settings(key=key, value=value)
             db.session.add(setting)
-        db.session.commit() 
+        db.session.commit()
