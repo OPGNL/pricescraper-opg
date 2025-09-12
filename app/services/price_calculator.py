@@ -1086,7 +1086,8 @@ class PriceCalculator:
             'short': 0.5,
             'default': 1.0,
             'long': 1.5,
-            'longer': 3.0
+            'longer': 3.0,
+            'longest': 5.0
         }
 
         duration = duration_map.get(step.get('duration', 'default'), 1.0)
