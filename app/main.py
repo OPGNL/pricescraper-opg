@@ -1,6 +1,8 @@
 import logging
 import os
 from pathlib import Path
+import sentry_sdk
+
 
 # Get the project root directory (parent of app directory)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,7 +20,16 @@ logging.basicConfig(
     ]
 )
 
-# Now import everything else (after logging is configured)
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    send_default_pii=True,
+    enable_logs=True,
+    traces_sample_rate=1.0,
+    profile_session_sample_rate=1.0,
+    profile_lifecycle="trace",
+)
+
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -52,6 +63,10 @@ app = FastAPI(
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    raise HTTPException(404, "This is a test exception for AppSignal!")
 
 # Include all routers
 app.include_router(web_router)
