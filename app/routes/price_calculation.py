@@ -13,12 +13,11 @@ from app.schemas.calculate import SquareMeterPriceRequest, ShippingRequest
 # Create router instance
 router = APIRouter()
 
-# Initialize calculator
-calculator = PriceCalculator()
-
 @router.post("/api/calculate-smp")
 async def calculate_square_meter_price(request: SquareMeterPriceRequest, db: Session = Depends(get_db)):
     try:
+        # Initialize calculator with fresh configs for each request
+        calculator = PriceCalculator()
         dimensions = {
             'thickness': request.dikte,
             'length': request.lengte,
@@ -75,6 +74,8 @@ async def calculate_square_meter_price(request: SquareMeterPriceRequest, db: Ses
 async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get_db)):
     """Calculate shipping costs"""
     try:
+        # Initialize calculator with fresh configs for each request
+        calculator = PriceCalculator()
         package_id = str(request.package_type)
         package_config = crud.get_package_config(db, package_id)
         if not package_config:
