@@ -38,7 +38,7 @@
             <span class="text-base font-normal text-gray-500 ml-2">({{ domain_configs|length }} domains)</span>
         </h2>
     </div>
-    
+
     <div class="flex items-center gap-4 mb-6">
         <div class="flex gap-4 flex-grow">
             <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="newDomainConfig()">
@@ -54,7 +54,7 @@
             <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="domainSearch" placeholder="Search domains..." onkeyup="filterDomains()">
         </div>
     </div>
-    
+
     <div id="domainAccordion" class="mt-5 space-y-4">
         {% for extension, grouped_domains in domains_by_extension.items()|sort %}
         <div class="mb-4 extension-header" data-extension="{{ extension }}">
@@ -74,7 +74,7 @@
                             <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ sanitized_domain }}" data-original-domain="{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
                             <div class="mt-4 flex justify-between">
                                 <div class="flex gap-2">
-                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-blue-700 text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="saveDomainConfig('{{ domain }}')">
+                                    <button type="button" class="inline-flex items-center px-3 py-2 border border-blue-700 text-sm leading-4 font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm" onclick="saveDomainConfig('{{ domain }}')">
                                         <i class="fas fa-save mr-2"></i>
                                         Save
                                     </button>
@@ -116,7 +116,7 @@
             </button>
         </div>
     </div>
-    
+
     <div class="space-y-2" id="countryAccordion">
         {% for country, config in country_configs.items() %}
         <div class="bg-white shadow rounded-lg overflow-hidden">
@@ -170,7 +170,7 @@
             </button>
         </div>
     </div>
-    
+
     <div class="space-y-2" id="packageAccordion">
         {% for id, config in package_configs.items()|sort %}
         <div class="bg-white shadow rounded-lg overflow-hidden">
@@ -337,7 +337,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Main content area with diff -->
                     <div class="flex-1 overflow-y-auto rounded-r-lg">
                         <div class="p-6">
@@ -478,34 +478,34 @@ function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('hidden');
-        
+
         // Zoek de primaire button in de modal (meestal de blauwe button)
         let primaryButton = null;
-        
+
         // In onze modals is de primaire knop meestal de laatste knop in de button-rij
         // of een button met blauwe styling (bg-blue-600, bg-green-600)
-        primaryButton = modal.querySelector('button.bg-blue-600') || 
+        primaryButton = modal.querySelector('button.bg-blue-600') ||
                         modal.querySelector('button.bg-green-600') ||
                         modal.querySelector('button[type="submit"]');
-        
+
         if (primaryButton) {
             // Verwijder eerst eventuele bestaande handlers
             modal.removeEventListener('keydown', modal._keydownHandler);
-            
+
             // Maak en sla de handler op zodat deze later kan worden verwijderd
             modal._keydownHandler = function(e) {
                 if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
                     // Voorkom dat de Enter-toets in textarea's en input velden in forms de submit trigger
                     if (e.target.tagName.toLowerCase() === 'textarea' || e.target.tagName.toLowerCase() === 'input') return;
-                    
+
                     // Voorkom standaard form submit gedrag
                     e.preventDefault();
-                    
+
                     // Trigger klik op de primaire knop
                     primaryButton.click();
                 }
             };
-            
+
             // Voeg event listener toe
             modal.addEventListener('keydown', modal._keydownHandler);
         }
@@ -524,14 +524,14 @@ function showNotification(message, type = 'success') {
     return new Promise((resolve) => {
         const notification = document.getElementById('notification');
         const messageElement = document.getElementById('notificationMessage');
-        
+
         // Set message and style based on type
         messageElement.textContent = message;
         notification.className = `fixed top-4 right-4 z-50 ${type === 'success' ? 'bg-green-50' : 'bg-red-50'}`;
-        
+
         // Show notification
         notification.classList.remove('hidden');
-        
+
         // Hide after 3 seconds and resolve the promise
         setTimeout(() => {
             notification.classList.add('hidden');
@@ -607,7 +607,7 @@ async function saveDomainConfig(domain) {
         const domainItems = document.querySelectorAll('.domain-item');
         let configElement = null;
         let originalDomain = domain;
-        
+
         // First try to find by sanitized domain ID (preferred method)
         for (const item of domainItems) {
             if (item.getAttribute('data-domain') === domain) {
@@ -619,12 +619,12 @@ async function saveDomainConfig(domain) {
                 }
             }
         }
-        
+
         // If still not found, try the old method as fallback
         if (!configElement) {
             configElement = document.getElementById(`domain_${domain}`);
         }
-        
+
         if (!configElement) {
             throw new Error(`Could not find configuration for domain ${domain}`);
         }
@@ -640,7 +640,7 @@ async function saveDomainConfig(domain) {
                 config: config
             })
         });
-        
+
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to save configuration');
@@ -657,7 +657,7 @@ async function createDomainConfig() {
     try {
         const configText = document.getElementById('newDomainConfig').value;
         const config = JSON.parse(configText);
-        
+
         if (!config.domain) {
             throw new Error('Domain name is required in the configuration (use the "domain" field)');
         }
@@ -672,7 +672,7 @@ async function createDomainConfig() {
                 config: config
             })
         });
-        
+
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to create configuration');
@@ -693,7 +693,7 @@ async function deleteDomainConfig(domain) {
 
     try {
         console.log(`Deleting domain: ${domain}`);
-        
+
         // Instead of using URL parameter, send domain in request body
         const response = await fetch('/api/config/delete', {
             method: 'POST',
@@ -758,7 +758,7 @@ async function saveCountryConfig(country) {
                 config: config
             })
         });
-        
+
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to save configuration');
@@ -775,7 +775,7 @@ async function createCountryConfig() {
     try {
         const configText = document.getElementById('newCountryConfig').value;
         const config = JSON.parse(configText);
-        
+
         if (!config.country_code) {
             throw new Error('Country code is required in the configuration (use the "country_code" field)');
         }
@@ -790,7 +790,7 @@ async function createCountryConfig() {
                 config: config
             })
         });
-        
+
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to create configuration');
@@ -808,12 +808,12 @@ async function deleteCountryConfig(country) {
     if (!confirm(`Are you sure you want to delete the configuration for ${country}?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/country/${country}`, {
             method: 'DELETE'
         });
-        
+
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to delete configuration');
@@ -877,7 +877,7 @@ async function createPackageConfig() {
     try {
         const configText = document.getElementById('newPackageConfig').value;
         const config = JSON.parse(configText);
-        
+
         if (!config.id) {
             throw new Error('Package ID is required in the configuration (use the "id" field)');
         }
@@ -892,7 +892,7 @@ async function createPackageConfig() {
                 config: config
             })
         });
-        
+
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to create configuration');
@@ -934,7 +934,7 @@ function exportDomainConfig(domain) {
         // Find the configElement using sanitized domain ID if available
         let configElement = null;
         const domainItems = document.querySelectorAll('.domain-item');
-        
+
         // First try to find by data-domain attribute
         for (const item of domainItems) {
             if (item.getAttribute('data-domain') === domain) {
@@ -945,12 +945,12 @@ function exportDomainConfig(domain) {
                 }
             }
         }
-        
+
         // Fallback to direct ID if needed
         if (!configElement) {
             configElement = document.getElementById(`domain_${domain}`);
         }
-        
+
         if (!configElement) {
             throw new Error(`Could not find configuration for domain ${domain}`);
         }
@@ -960,11 +960,11 @@ function exportDomainConfig(domain) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        
+
         // Use a safe filename by replacing problematic characters
         const safeFilename = domain.replace(/[\/\\:*?"<>|]/g, '_');
         a.download = `${safeFilename}_config.json`;
-        
+
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1033,7 +1033,7 @@ async function importConfig() {
                 if (!config.domain) {
                     throw new Error('Configuration file must contain a domain field');
                 }
-                
+
                 const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: {
@@ -1044,7 +1044,7 @@ async function importConfig() {
                         config: config
                     })
                 });
-                
+
                 const result = await response.json();
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to import configuration');
@@ -1089,7 +1089,7 @@ function filterDomains() {
     const searchTerm = searchInput.value.toLowerCase();
     const domainItems = document.querySelectorAll('.domain-item');
     let visibleCount = 0;
-    
+
     // Zoek door alle domein items
     domainItems.forEach(item => {
         const domain = item.getAttribute('data-domain').toLowerCase();
@@ -1100,7 +1100,7 @@ function filterDomains() {
             item.style.display = 'none';
         }
     });
-    
+
     // Update the extension headers visibilities
     const extensionHeaders = document.querySelectorAll('.extension-header');
     extensionHeaders.forEach(header => {
@@ -1112,13 +1112,13 @@ function filterDomains() {
                 visibleExtensionDomains++;
             }
         });
-        
+
         // Update the count and visibility of the extension header
         const countElement = header.querySelector('.domain-count');
         if (countElement) {
             countElement.textContent = `(${visibleExtensionDomains})`;
         }
-        
+
         if (visibleExtensionDomains === 0) {
             header.style.display = 'none';
         } else {
@@ -1133,13 +1133,13 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.domain-item').forEach(item => {
         const domain = item.getAttribute('data-domain');
         const sanitizedDomain = item.getAttribute('data-sanitized-domain');
-        
+
         if (!domain) return; // Skip if no domain attribute found
-        
+
         // Find all buttons within this domain item
         const buttonContainer = item.querySelector('.p-4');
         if (!buttonContainer) return;
-        
+
         // Setup save button
         const saveButton = buttonContainer.querySelector('button[onclick*="saveDomainConfig"]');
         if (saveButton) {
@@ -1148,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 saveDomainConfig(domain);
             });
         }
-        
+
         // Setup delete button
         const deleteButton = buttonContainer.querySelector('button[onclick*="deleteDomainConfig"]');
         if (deleteButton) {
@@ -1157,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 deleteDomainConfig(domain);
             });
         }
-        
+
         // Setup version history button
         const versionButton = buttonContainer.querySelector('button[onclick*="showVersions"]');
         if (versionButton) {
@@ -1166,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showVersions('domain', domain);
             });
         }
-        
+
         // Setup export button
         const exportButton = buttonContainer.querySelector('button[onclick*="exportDomainConfig"]');
         if (exportButton) {
@@ -1176,14 +1176,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     // Initialize the domain search functionality
     const searchInput = document.getElementById('domainSearch');
     if (searchInput) {
         searchInput.addEventListener('keyup', filterDomains);
         searchInput.addEventListener('change', filterDomains);
     }
-    
+
     // Initialize modal buttons
     document.querySelectorAll('.modal-close').forEach(button => {
         button.addEventListener('click', function() {
@@ -1197,14 +1197,24 @@ document.addEventListener('DOMContentLoaded', function() {
 let eventSource = null;
 
 function startStatusStream() {
+    // Legacy function - now a no-op to avoid accidental global stream usage
+    console.warn('startStatusStream called without request_id - use startStatusStreamForRequest instead');
+}
+
+function startStatusStreamForRequest(requestId) {
     // Always close existing connection first
     if (eventSource) {
         eventSource.close();
         eventSource = null;
     }
 
-    eventSource = new EventSource('/api/status-stream');
-    
+    if (!requestId) {
+        console.error('No request ID provided for SSE stream');
+        return;
+    }
+
+    eventSource = new EventSource(`/api/status-stream/${encodeURIComponent(requestId)}`);
+
     eventSource.addEventListener('status', (event) => {
         const status = JSON.parse(event.data);
         updateStatus(status);
@@ -1283,7 +1293,7 @@ function updateStatus(status) {
         <span class="step-type">${status.step_type}</span>
         ${stepDetails ? `<span class="step-details">${stepDetails}</span>` : ''}
     </div>`;
-    
+
     // Add log line to all logging divs
     const loggingDivs = document.querySelectorAll('.logging-info');
     loggingDivs.forEach(div => {
@@ -1323,11 +1333,11 @@ async function showVersions(type, id) {
     const modal = document.getElementById('versionModal');
     const versionList = document.getElementById('versionList');
     const diffContainer = document.getElementById('diffContainer');
-    
+
     modal.classList.remove('hidden');
     versionList.innerHTML = '<div class="text-center">Loading versions...</div>';
     diffContainer.innerHTML = '';
-    
+
     try {
         // Controleer of we een geldig ID hebben
         if (!id) {
@@ -1349,21 +1359,21 @@ async function showVersions(type, id) {
         } else {
             throw new Error('Invalid type provided');
         }
-        
+
         const response = await fetch(`/api/${endpoint}/versions`);
-        
+
         if (!response.ok) {
             throw new Error('Failed to fetch versions');
         }
-        
+
         const data = await response.json();
         const versions = Array.isArray(data) ? data : [];
-        
+
         if (versions.length === 0) {
             versionList.innerHTML = '<div class="text-gray-500">No version history available.</div>';
             return;
         }
-        
+
         versionList.innerHTML = versions.map((version, index) => {
             const isFirst = index === 0;
             const date = new Date(version.created_at).toLocaleString('nl-NL');
@@ -1387,13 +1397,13 @@ async function showVersions(type, id) {
                 </div>
             `;
         }).join('');
-        
+
         window.versionHistory = versions;
-        
+
         if (versions.length > 1) {
             handleVersionClick(0, 1);
         }
-        
+
     } catch (error) {
         console.error('Error loading versions:', error);
         versionList.innerHTML = `<div class="text-red-500">Error loading versions: ${error.message}</div>`;
@@ -1421,15 +1431,15 @@ function handleVersionClick(newIndex, oldIndex) {
 function showDiff(newIndex, oldIndex) {
     const versions = window.versionHistory;
     const diffContainer = document.getElementById('diffContainer');
-    
+
     if (!versions || !versions[newIndex]) {
         console.error('Version history not available');
         return;
     }
-    
+
     const newVersion = versions[newIndex];
     const oldVersion = oldIndex !== null ? versions[oldIndex] : null;
-    
+
     // Create a formatted diff with "Version X" format
     const diff = Diff.createTwoFilesPatch(
         `Version ${oldVersion ? oldVersion.version : 'none'}`,
@@ -1437,10 +1447,10 @@ function showDiff(newIndex, oldIndex) {
         oldVersion ? JSON.stringify(oldVersion.config, null, 2) : '',
         JSON.stringify(newVersion.config, null, 2)
     );
-    
+
     // Clear previous diff
     diffContainer.innerHTML = '';
-    
+
     // Create a new diff2html UI instance with optimized configuration for full-screen
     const configuration = {
         drawFileList: false,
@@ -1453,10 +1463,10 @@ function showDiff(newIndex, oldIndex) {
             'side-by-side': true
         }
     };
-    
+
     const diff2htmlUi = new Diff2HtmlUI(diffContainer, diff, configuration);
     diff2htmlUi.draw();
-    
+
     // Add custom styling for better full-screen display
     const diffOutput = diffContainer.querySelector('.d2h-file-list-wrapper');
     if (diffOutput) {
@@ -1491,7 +1501,7 @@ async function restoreVersion(type, id, version) {
         } else {
             throw new Error('Invalid type provided');
         }
-        
+
         const response = await fetch(`/api/${endpoint}/restore/${version}`, {
             method: 'POST',
             headers: {
@@ -1519,14 +1529,14 @@ async function deleteConfig(type, id) {
     if (!confirm('Are you sure you want to delete this configuration?')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/${type === 'domain' ? 'config' : type}/${id}`, {
             method: 'DELETE'
         });
-        
+
         if (!response.ok) throw new Error('Failed to delete configuration');
-        
+
         await showNotification('Configuration deleted successfully', 'success');
         location.reload();
     } catch (error) {
@@ -1564,11 +1574,11 @@ async function importCountryConfig() {
             try {
                 const config = JSON.parse(e.target.result);
                 const country = config.code || config.country_code;
-                
+
                 if (!country) {
                     throw new Error('Country code is required in the configuration file (use either "code" or "country_code" field)');
                 }
-                
+
                 const response = await fetch('/api/country', {
                     method: 'POST',
                     headers: {
@@ -1579,7 +1589,7 @@ async function importCountryConfig() {
                         config: config
                     })
                 });
-                
+
                 const result = await response.json();
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to import configuration');
@@ -1610,11 +1620,11 @@ async function importPackageConfig() {
         reader.onload = async (e) => {
             try {
                 const config = JSON.parse(e.target.result);
-                
+
                 if (!config.id) {
                     throw new Error('Package ID is required in the configuration (use the "id" field)');
                 }
-        
+
         const response = await fetch('/api/packages', {
             method: 'POST',
                     headers: {
@@ -1625,7 +1635,7 @@ async function importPackageConfig() {
                 config: config
             })
         });
-        
+
                 const result = await response.json();
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to import configuration');
@@ -1653,11 +1663,11 @@ async function exportConfigs() {
             const error = await response.json();
             throw new Error(error.detail || 'Export failed');
         }
-        
+
         // Get the filename from the Content-Disposition header
         const contentDisposition = response.headers.get('Content-Disposition');
         const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : 'configs_backup.json';
-        
+
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1678,7 +1688,7 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const file = document.getElementById('configFile').files[0];
     const clearExisting = document.getElementById('clearExisting').checked;
-    
+
     if (!file) {
         showNotification('Please select a file to import', 'error');
         return;
@@ -1688,7 +1698,7 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
         // Read and validate the file content
         const content = await file.text();
         const config = JSON.parse(content);
-        
+
         // Validate the required structure
         if (!config.domain_configs || !config.country_configs || !config.package_configs) {
             throw new Error('Invalid configuration format. The file must contain domain_configs, country_configs, and package_configs arrays.');
@@ -1707,7 +1717,7 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
             const error = await response.json();
             throw new Error(error.detail || 'Import failed');
         }
-        
+
         const result = await response.json();
         await showNotification('Configurations imported successfully', 'success');
         hideModal('importModal');
@@ -1720,7 +1730,7 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
 document.getElementById('domainImportForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const file = document.getElementById('domainFile').files[0];
-    
+
     if (!file) {
         showNotification('Please select a file to import', 'error');
         return;
@@ -1736,7 +1746,7 @@ document.getElementById('domainImportForm').addEventListener('submit', async (e)
         });
 
         if (!response.ok) throw new Error('Import failed');
-        
+
         const result = await response.json();
         await showNotification('Domains imported successfully', 'success');
         hideModal('domainImportModal');
@@ -1874,7 +1884,7 @@ async function importConfiguration() {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.json';
-    
+
     fileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -1917,4 +1927,4 @@ async function importConfiguration() {
     fileInput.click();
 }
 </script>
-{% endblock %} 
+{% endblock %}

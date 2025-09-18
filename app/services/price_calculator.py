@@ -15,14 +15,17 @@ import string
 from twocaptcha import TwoCaptcha
 from app.core.config import Settings
 
+# Global status store for per-request status tracking
+_status_store = {}
+
 class PriceCalculator:
-    """Calculate prices based on dimensions for different domains"""
 
-    # Class variable to store latest status
-    latest_status = None
-
-    def __init__(self):
+    def __init__(self, request_id: str = None):
         """Initialize the calculator"""
+        self.request_id = request_id
+        # Number of seconds to keep status available after calculation completes.
+        # Helps clients connect to SSE after receiving request_id and still see logs.
+        self.preserve_status_ttl = 30
         self.configs = {}  # Initialize configs dictionary
         self._load_configs()  # Load configurations from database
         self._update_status("Initializing calculator")
@@ -46,13 +49,19 @@ class PriceCalculator:
 
     def _update_status(self, message: str, step_type: str = None, step_details: dict = None):
         """Update the status of the current operation with detailed logging"""
+        if not self.request_id:
+            return  # Skip status updates if no request ID
+
         # Create the status object
-        PriceCalculator.latest_status = {
+        status_update = {
             "message": message,
             "step_type": step_type,
             "step_details": step_details,
             "timestamp": datetime.now().isoformat()
         }
+
+        # Store status update for this request
+        _status_store[self.request_id] = status_update
 
         # Create a detailed log message
         log_parts = []
@@ -313,6 +322,32 @@ class PriceCalculator:
         except Exception as e:
             self._update_status(f"Error calculating price: {str(e)}", "error")
             raise
+        finally:
+            # Clean up status when calculation is complete
+            self._cleanup_status()
+
+    def _cleanup_status(self):
+        """Clean up status updates for this request"""
+        if not self.request_id:
+            return
+
+        if self.request_id not in _status_store:
+            return
+
+        # If TTL is set, schedule delayed cleanup so clients have time to connect
+        if getattr(self, 'preserve_status_ttl', 0) and self.preserve_status_ttl > 0:
+            # Schedule deletion after TTL seconds
+            try:
+                asyncio.create_task(self._delayed_cleanup(self.request_id, self.preserve_status_ttl))
+            except RuntimeError:
+                # Event loop might be closed or unavailable; fall back to immediate delete
+                _status_store.pop(self.request_id, None)
+        else:
+            _status_store.pop(self.request_id, None)
+
+    async def _delayed_cleanup(self, request_id: str, ttl: int):
+        await asyncio.sleep(ttl)
+        _status_store.pop(request_id, None)
 
     def _convert_value(self, value: float, unit: str) -> float:
         """Convert a value from millimeters to the target unit"""
