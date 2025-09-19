@@ -170,6 +170,10 @@ class PriceCalculator:
                         '--disable-cache',
                         '--disable-offline-load-stale-cache',
                         '--disk-cache-size=0',
+                        '--disable-accelerated-2d-canvas',
+                        '--disable-webgl',
+                        '--disable-gpu',
+                        '--disable-software-rasterizer',
                         f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                     ]
                 )
