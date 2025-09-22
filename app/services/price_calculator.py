@@ -160,22 +160,31 @@ class PriceCalculator:
             self._update_status(f"Starting price calculation for {domain}", "config", debug_info)
 
             async with async_playwright() as p:
-                # Launch browser with anti-detection settings
-                browser = await p.chromium.launch(
-                    headless=HEADLESS,
-                    args=[
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-features=IsolateOrigins,site-per-process',
-                        '--disable-application-cache',
-                        '--disable-cache',
-                        '--disable-offline-load-stale-cache',
-                        '--disk-cache-size=0',
+                # Get browser config from domain config
+                disable_canvas_webgl = config.get('disable_canvas_webgl', False)  # Default to False for anti-detection
+
+                # Build args conditionally
+                args = [
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-application-cache',
+                    '--disable-cache',
+                    '--disable-offline-load-stale-cache',
+                    '--disk-cache-size=0',
+                    f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                ]
+                if disable_canvas_webgl:
+                    args.extend([
                         '--disable-accelerated-2d-canvas',
                         '--disable-webgl',
                         '--disable-gpu',
                         '--disable-software-rasterizer',
-                        f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                    ]
+                    ])
+
+                # Launch browser with conditional args
+                browser = await p.chromium.launch(
+                    headless=HEADLESS,
+                    args=args
                 )
 
                 # Create context with more realistic browser settings and disabled storage
