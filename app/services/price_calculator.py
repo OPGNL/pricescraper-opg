@@ -160,18 +160,31 @@ class PriceCalculator:
             self._update_status(f"Starting price calculation for {domain}", "config", debug_info)
 
             async with async_playwright() as p:
-                # Launch browser with anti-detection settings
+                # Get browser config from domain config
+                disable_canvas_webgl = config.get('disable_canvas_webgl', False)  # Default to False for anti-detection
+
+                # Build args conditionally
+                args = [
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-application-cache',
+                    '--disable-cache',
+                    '--disable-offline-load-stale-cache',
+                    '--disk-cache-size=0',
+                    f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                ]
+                if disable_canvas_webgl:
+                    args.extend([
+                        '--disable-accelerated-2d-canvas',
+                        '--disable-webgl',
+                        '--disable-gpu',
+                        '--disable-software-rasterizer',
+                    ])
+
+                # Launch browser with conditional args
                 browser = await p.chromium.launch(
                     headless=HEADLESS,
-                    args=[
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-features=IsolateOrigins,site-per-process',
-                        '--disable-application-cache',
-                        '--disable-cache',
-                        '--disable-offline-load-stale-cache',
-                        '--disk-cache-size=0',
-                        f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                    ]
+                    args=args
                 )
 
                 # Create context with more realistic browser settings and disabled storage
@@ -1572,6 +1585,44 @@ class PriceCalculator:
             self._update_status(f"Navigation failed: {str(e)}", "error")
             raise
 
+    async def _handle_reload(self, page, step):
+        """Handle a reload step that reloads the current page"""
+        wait_for_load = step.get('wait_for_load', True)
+        timeout = step.get('timeout', 30) * 1000  # Convert to milliseconds
+
+        self._update_status("Reloading page", "reload")
+
+        try:
+            # Reload the current page - start basic reload without waiting
+            await page.reload(wait_until='commit', timeout=timeout)
+
+            if wait_for_load:
+                # Use the same robust waiting strategy as the main page loading
+                try:
+                    # Strategy 1: Wait for network idle (most reliable for dynamic content)
+                    await page.wait_for_load_state('networkidle', timeout=15000)
+                    self._update_status("Page reloaded successfully (networkidle)", "reload", {"status": "success"})
+                except:
+                    try:
+                        # Strategy 2: Wait for DOM content to be loaded
+                        await page.wait_for_load_state('domcontentloaded', timeout=10000)
+                        # Give a bit more time for any remaining dynamic content
+                        await asyncio.sleep(2)
+                        self._update_status("Page reloaded successfully (domcontentloaded)", "reload", {"status": "success"})
+                    except:
+                        # Strategy 3: Fallback - just wait a reasonable amount of time
+                        await asyncio.sleep(3)
+                        self._update_status("Page reload timeout, proceeding anyway", "reload", {"status": "timeout"})
+            else:
+                self._update_status("Page reloaded (no wait)", "reload", {"status": "success"})
+
+        except Exception as e:
+            if step.get('continue_on_error', False):
+                self._update_status(f"Page reload failed: {str(e)}, continuing...", "warn")
+                return
+            self._update_status(f"Page reload failed: {str(e)}", "error")
+            raise
+
     async def _process_step(self, page, step, dimensions=None):
         """Process a single step in the configuration"""
         step_type = step['type']
@@ -1594,6 +1645,8 @@ class PriceCalculator:
                 return price
             elif step_type == 'navigate':
                 await self._handle_navigate(page, step)
+            elif step_type == 'reload':
+                await self._handle_reload(page, step)
             elif step_type == 'captcha':
                 await self._handle_captcha(page, step)
             else:
