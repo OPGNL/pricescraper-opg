@@ -256,7 +256,11 @@ class PriceCalculator:
                             await asyncio.sleep(3)
                             self._update_status("Page load timeout, proceeding anyway", "loaded")
 
-                    for step in steps:
+                    current_category = category  # Track current category for config switching
+                    step_index = 0
+
+                    while step_index < len(steps):
+                        step = steps[step_index]
                         try:
                             # Add random mouse movements before each action
                             if step['type'] in ['click', 'input', 'select']:
@@ -267,6 +271,35 @@ class PriceCalculator:
                                 )
 
                             result = await self._process_step(page, step, dimensions)
+
+                            # Handle decide_config step result
+                            if step['type'] == 'decide_config' and result is not None:
+                                if result.get('switch_config', False):
+                                    new_config = result.get('new_config')
+                                    if new_config and new_config in config['categories']:
+                                        self._update_status(
+                                            f"Switching from '{current_category}' to '{new_config}' configuration",
+                                            "config_switch",
+                                            {
+                                                "from_config": current_category,
+                                                "to_config": new_config,
+                                                "reason": "decide_config_triggered"
+                                            }
+                                        )
+                                        # Switch to new configuration
+                                        current_category = new_config
+                                        steps = config['categories'][current_category]['steps']
+                                        # Continue from the next step in the new configuration
+                                        step_index = 0
+                                        continue
+                                    else:
+                                        self._update_status(
+                                            f"Fallback configuration '{new_config}' not found, continuing with current",
+                                            "warn"
+                                        )
+                                # If not switching, just continue with next step
+                                step_index += 1
+                                continue
 
                             if step['type'] == 'read_price' and result is not None:
                                 # Convert price based on VAT
@@ -313,9 +346,12 @@ class PriceCalculator:
                                         }
                                     )
                                     return 0.00, 0.00
+                                step_index += 1
                                 continue
                             else:
                                 raise step_error
+
+                        step_index += 1
 
                 except Exception as e:
                     self._update_status(f"Error: {str(e)}", "error")
@@ -1671,6 +1707,9 @@ class PriceCalculator:
                 await self._handle_reload(page, step)
             elif step_type == 'captcha':
                 await self._handle_captcha(page, step)
+            elif step_type == 'decide_config':
+                result = await self._handle_decide_config(page, step)
+                return result
             else:
                 raise ValueError(f"Unknown step type: {step_type}")
 
@@ -1773,6 +1812,52 @@ class PriceCalculator:
                 return
             self._update_status(f"Captcha handling failed: {str(e)}", "error")
             raise
+
+    async def _handle_decide_config(self, page, step):
+        """Handle decide_config step to dynamically switch configurations based on page content"""
+        selector = step.get('selector')
+        timeout = step.get('timeout', 10)  # Default 10 seconds timeout
+        fallback_config = step.get('fallback_config', 'square_meter_price_2')
+
+        if not selector:
+            raise ValueError("Selector is required for decide_config step")
+
+        self._update_status(
+            f"Checking if element '{selector}' is visible to decide configuration",
+            "decide_config",
+            {"selector": selector, "timeout": timeout, "fallback_config": fallback_config}
+        )
+
+        try:
+            # Wait for the selector to be visible within the timeout
+            element = await page.wait_for_selector(selector, state="visible", timeout=timeout * 1000)
+
+            if element:
+                self._update_status(
+                    f"Element '{selector}' found - continuing with current configuration",
+                    "decide_config",
+                    {"selector": selector, "decision": "continue_current_config", "status": "success"}
+                )
+                return {"switch_config": False, "current_config": True}
+
+        except Exception as e:
+            # Timeout or element not found - switch to fallback configuration
+            self._update_status(
+                f"Element '{selector}' not found within {timeout}s - switching to '{fallback_config}' configuration",
+                "decide_config",
+                {
+                    "selector": selector,
+                    "timeout": timeout,
+                    "fallback_config": fallback_config,
+                    "decision": "switch_config",
+                    "reason": str(e),
+                    "status": "config_switched"
+                }
+            )
+            return {"switch_config": True, "new_config": fallback_config}
+
+        # Fallback case (should not reach here, but for safety)
+        return {"switch_config": True, "new_config": fallback_config}
 
     def _format_price(self, amount: float, currency_format: str, decimal_separator: str = ',', thousands_separator: str = '.') -> str:
         """Format a price according to the specified format and separators"""
