@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
-from models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
+from app.models.models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
 
 def export_configs(db: Session) -> Dict:
     """
@@ -161,4 +161,4 @@ def import_configs_from_file(db: Session, filename: str = "configs_backup.json",
     Import configurations from a file.
     """
     import_data = load_configs_from_file(filename)
-    import_configs(import_data, db, clear_existing) 
+    import_configs(import_data, db, clear_existing)

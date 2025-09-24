@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - 360 Competitor Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">Settings</h1>
+    </div>
+
+    <!-- Notification container -->
+    <div id="notification" class="hidden mb-4 p-4 rounded-md"></div>
+
+    <div class="bg-white shadow rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-medium text-gray-900 mb-6">2Captcha Configuration</h2>
+        
+        <form method="POST" action="{{ url_for('save_settings') }}" class="space-y-6">
+            <div class="max-w-2xl">
+                <label for="api_key" class="block text-sm font-medium text-gray-700">API Key</label>
+                <div class="mt-2">
+                    <input type="text" name="api_key" id="api_key" 
+                           class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                           value="{{ api_key }}"
+                           placeholder="Enter your 2Captcha API key">
+                </div>
+                <p class="mt-2 text-sm text-gray-500">
+                    Required for solving captchas. Get your API key at <a href="https://2captcha.com/" target="_blank" class="text-blue-600 hover:text-blue-500">2captcha.com</a>
+                </p>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `mb-4 p-4 rounded-md ${type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`;
+    notification.classList.remove('hidden');
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('hidden');
+    }, 5000);
+}
+
+document.querySelector('form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    try {
+        const response = await fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(new FormData(this))
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(data.message || 'Settings saved successfully');
+        } else {
+            showNotification(data.detail || 'Failed to save settings', 'error');
+        }
+    } catch (error) {
+        showNotification('An error occurred while saving settings', 'error');
+    }
+});
+</script>
+{% endblock %} 

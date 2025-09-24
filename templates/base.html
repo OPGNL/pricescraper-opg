@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}360 Competitor Dashboard{% endblock %}</title>
+    <link href="/static/css/output.css" rel="stylesheet">
+    <link href="/static/css/diff2html.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    {% block styles %}{% endblock %}
+</head>
+<body class="bg-gray-50 text-sm">
+    <!-- Notification container -->
+    <div id="notification" class="fixed bottom-4 right-4 z-50 hidden transform transition-all duration-300 ease-in-out">
+        <div class="rounded-lg shadow-md bg-white border border-gray-200 overflow-hidden">
+            <div class="flex items-center p-4 min-w-[300px]">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium text-gray-900" id="notificationMessage"></p>
+                </div>
+                <div class="ml-4 flex-shrink-0">
+                    <button type="button" class="inline-flex text-gray-400 hover:text-gray-500 focus:outline-none" onclick="document.getElementById('notification').classList.add('hidden')">
+                        <span class="sr-only">Close</span>
+                        <i class="fas fa-times h-5 w-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="bg-gray-800 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a class="text-white font-bold text-xl" href="/">360 Competitor Dashboard</a>
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a class="{% if request.url.path == '/' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} px-3 py-2 rounded-md text-sm font-medium" href="/">Home</a>
+                        <a href="/config" class="{% if request.url.path == '/config' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Configurations</a>
+                        <a href="/step-editor" class="{% if request.url.path == '/step-editor' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Step Editor</a>
+                        <a href="/config-docs" class="{% if request.url.path == '/config-docs' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Manual</a>
+                        <a href="/docs" class="{% if request.url.path == '/docs' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Documentation</a>
+                        <a href="/settings" class="{% if request.url.path == '/settings' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Settings</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    {% block scripts %}{% endblock %}
+
+    <script>
+        function showNotification(message, type = 'success') {
+            return new Promise((resolve) => {
+                const notification = document.getElementById('notification');
+                const messageElement = document.getElementById('notificationMessage');
+                const iconElement = notification.querySelector('.flex-shrink-0 i');
+                
+                // Set message and style based on type
+                messageElement.textContent = message;
+                
+                if (type === 'success') {
+                    notification.querySelector('.rounded-lg').classList.remove('bg-red-50', 'border-red-200');
+                    notification.querySelector('.rounded-lg').classList.add('bg-green-50', 'border-green-200');
+                    iconElement.className = 'fas fa-check-circle text-green-500 text-xl';
+                } else {
+                    notification.querySelector('.rounded-lg').classList.remove('bg-green-50', 'border-green-200');
+                    notification.querySelector('.rounded-lg').classList.add('bg-red-50', 'border-red-200');
+                    iconElement.className = 'fas fa-exclamation-circle text-red-500 text-xl';
+                }
+                
+                // Show notification with slide-in animation
+                notification.classList.remove('hidden');
+                notification.classList.add('translate-x-0', 'opacity-100');
+                notification.classList.remove('translate-x-full', 'opacity-0');
+                
+                // Hide after 3 seconds with slide-out animation
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full', 'opacity-0');
+                    notification.classList.remove('translate-x-0', 'opacity-100');
+                    setTimeout(() => {
+                        notification.classList.add('hidden');
+                        resolve();
+                    }, 300);
+                }, 3000);
+            });
+        }
+    </script>
+</body>
+</html> 

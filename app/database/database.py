@@ -2,8 +2,8 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
-from config import IS_PRODUCTION, LOCAL_DATABASE_URL
-from settings import Settings
+from app.core.config import IS_PRODUCTION, LOCAL_DATABASE_URL
+from app.core.settings import Settings
 
 # In production, use PostgreSQL from Fly.io. In development, use local database
 if IS_PRODUCTION:
@@ -31,12 +31,12 @@ Base = declarative_base()
 # Initialize database
 def init_db():
     # Import all models here to avoid circular imports
-    from models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
-    
+    from app.models.models import DomainConfig, CountryConfig, PackageConfig, ConfigVersion
+
     # Check if tables exist
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
-    
+
     # Only create tables that don't exist yet
     if not all(table in existing_tables for table in ['domain_configs', 'country_configs', 'package_configs', 'config_versions']):
         Base.metadata.create_all(bind=engine)
@@ -53,4 +53,4 @@ def get_db():
     try:
         yield db
     finally:
-        db.close() 
+        db.close()
