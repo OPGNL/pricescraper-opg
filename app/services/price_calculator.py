@@ -368,6 +368,47 @@ class PriceCalculator:
                 self._update_status(f"Could not highlight element: {str(e)}", "warn")
                 continue
 
+    def _substitute_dynamic_selector(self, selector: str, dimensions: dict, step: dict, operation_type: str = "operation") -> str:
+        """
+        Handle dynamic selector substitution with dimension variables.
+
+        Args:
+            selector: The selector string that may contain variables like {thickness}
+            dimensions: Dictionary containing dimension values
+            step: The step configuration containing unit information
+            operation_type: Type of operation for logging (e.g., "click", "select")
+
+        Returns:
+            Modified selector with variables substituted
+        """
+        if not dimensions or '{' not in selector or '}' not in selector:
+            return selector
+
+        original_selector = selector
+        for key in ['thickness', 'width', 'length', 'quantity']:
+            if f"{{{key}}}" in selector:
+                if key in dimensions:
+                    # Convert value and substitute
+                    value = dimensions[key]
+                    unit = step.get('unit', 'mm')
+                    converted_value = self._convert_value(value, unit)
+
+                    # Convert to integer if it's a whole number
+                    if isinstance(converted_value, float) and converted_value.is_integer():
+                        converted_value = int(converted_value)
+
+                    selector = selector.replace(f"{{{key}}}", str(converted_value))
+                    self._update_status(
+                        f"Dynamic selector: replaced {{{key}}} with {converted_value}",
+                        operation_type,
+                        {"original_selector": original_selector, "final_selector": selector}
+                    )
+                else:
+                    self._update_status(f"Dimension {key} not found for dynamic selector", "error")
+                    raise ValueError(f"Dimension {key} not found in dimensions dict")
+
+        return selector
+
     async def _handle_select(self, page, step, dimensions):
         """Handle a select/input step"""
         # Controleer eerst of 'value' aanwezig is in de step dictionary
@@ -400,6 +441,9 @@ class PriceCalculator:
 
         value = step['value']
         selector = step['selector']
+
+        # Support dynamic selector creation with variable substitution
+        selector = self._substitute_dynamic_selector(selector, dimensions, step, "select")
 
         # Handle index-based selection
         if isinstance(value, str) and value.startswith('index:'):
@@ -984,29 +1028,7 @@ class PriceCalculator:
         max_retries = 2
 
         # Support dynamic selector creation with variable substitution
-        if dimensions and '{' in selector and '}' in selector:
-            original_selector = selector
-            for key in ['thickness', 'width', 'length', 'quantity']:
-                if f"{{{key}}}" in selector:
-                    if key in dimensions:
-                        # Convert value and substitute
-                        value = dimensions[key]
-                        unit = step.get('unit', 'mm')
-                        converted_value = self._convert_value(value, unit)
-
-                        # Convert to integer if it's a whole number
-                        if isinstance(converted_value, float) and converted_value.is_integer():
-                            converted_value = int(converted_value)
-
-                        selector = selector.replace(f"{{{key}}}", str(converted_value))
-                        self._update_status(
-                            f"Dynamic selector: replaced {{{key}}} with {converted_value}",
-                            "click",
-                            {"original_selector": original_selector, "final_selector": selector}
-                        )
-                    else:
-                        self._update_status(f"Dimension {key} not found for dynamic selector", "error")
-                        raise ValueError(f"Dimension {key} not found in dimensions dict")
+        selector = self._substitute_dynamic_selector(selector, dimensions, step, "click")
 
         # Add more descriptive messages for specific actions
         if 'figure' in selector.lower():
