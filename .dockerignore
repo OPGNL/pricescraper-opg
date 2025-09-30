@@ -1,13 +1,50 @@
-.git
-.gitignore
+# IDEs
+.zed/
+.vscode/
+.idea/
+.pycharm/
+
+# Virtual Environment
+.python-version
+.venv
 .env
-__pycache__
-*.pyc
-venv/
+.venv/
+.ropeproject/
+
+# Python testing
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Build
 dist/
 build/
 *.egg-info/
+
+# Git
+.gitignore
+.gitattributes
+.git/
+.github/
+
+# Docker
+docker-compose.yml
+Dockerfile
+Dockerfile.prod
+.docker
+.dockerignore
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+
+# C extensions
+*.so
+
+# MacOS
 .DS_Store
+
+# Project specific
+README.md
+
+node_modules

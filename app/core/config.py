@@ -3,7 +3,7 @@ from sqlalchemy import Column, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 
 # Environment settings
-ENV = os.getenv('ENV', 'development')  # 'development' or 'production'
+ENV = os.getenv('ENV', 'production')  # 'development' or 'production'
 IS_PRODUCTION = ENV == 'production'
 
 # Browser settings

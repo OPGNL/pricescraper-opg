@@ -10,8 +10,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
-    network_mode: "host"
+      - "5432:5432"
+    network_mode: host
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
       interval: 10s
@@ -26,6 +26,7 @@ services:
       - redis_data:/data
     ports:
       - "6379:6379"
+    network_mode: host
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -37,6 +38,7 @@ services:
     container_name: competitor-price-watcher
     ports:
       - "8000:8000"  # HTTPS port for development
+    network_mode: host
     volumes:
       - .:/app
       - ./certs:/app/certs:ro  # Mount SSL certificates as read-only
