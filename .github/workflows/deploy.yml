@@ -19,7 +19,7 @@ env:
   ECR_REPOSITORY: price-scraper           # set this to your Amazon ECR repository name
   ECS_SERVICE: price-scraper-service      # set this to your Amazon ECS service name
   ECS_CLUSTER: price-scraper-cluster      # set this to your Amazon ECS cluster name
-  ECS_TASK_DEFINITION: price-scraper      # set this to the path to your Amazon ECS task definition file, e.g. .aws/task-definition.json
+  ECS_TASK_DEFINITION: price-scraper:12      # set this to the path to your Amazon ECS task definition file, e.g. .aws/task-definition.json
   CONTAINER_NAME: price-scraper           # set this to the name of the container in the containerDefinitions section of your task definition
 
 jobs:
