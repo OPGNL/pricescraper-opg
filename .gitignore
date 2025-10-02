@@ -99,7 +99,10 @@ __pycache__/
 *.pyd
 *.pdb
 
-static/
+static/images
+static/js
+static/css/diff2html.min.css
+static/css/output.css
 
 debug.log
 
