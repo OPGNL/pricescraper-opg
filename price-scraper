@@ -1,11 +1,22 @@
 {
-  "compatibilities": [
-    "EC2",
-    "FARGATE"
-  ],
+  "family": "price-scraper",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::744158388766:role/price-scraper-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::744158388766:role/price-scraper-ecs-task-role",
   "containerDefinitions": [
     {
-      "cpu": 0,
+      "name": "price-scraper",
+      "image": "744158388766.dkr.ecr.eu-central-1.amazonaws.com/price-scraper:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
       "environment": [
         {
           "name": "DB_HOST",
@@ -18,85 +29,35 @@
         {
           "name": "DB_NAME",
           "value": "price_scraper"
+        },
+        {
+          "name": "ENV",
+          "value": "production"
+        },
+        {
+          "name": "HEADLESS",
+          "value": "true"
         }
       ],
-      "essential": true,
-      "image": "744158388766.dkr.ecr.eu-central-1.amazonaws.com/price-scraper:latest",
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/ecs/price-scraper",
           "awslogs-region": "eu-central-1",
-          "awslogs-stream-prefix": "ecs"
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
         }
       },
-      "mountPoints": [],
-      "name": "price-scraper",
-      "portMappings": [
-        {
-          "containerPort": 8080,
-          "hostPort": 8080,
-          "protocol": "tcp"
-        }
-      ],
-      "systemControls": [],
-      "volumesFrom": []
-    }
-  ],
-  "cpu": "256",
-  "executionRoleArn": "arn:aws:iam::744158388766:role/price-scraper-ecs-task-execution-role",
-  "family": "price-scraper",
-  "memory": "512",
-  "networkMode": "awsvpc",
-  "placementConstraints": [],
-  "registeredAt": "2025-09-26T18:23:06.989Z",
-  "registeredBy": "arn:aws:sts::744158388766:assumed-role/LinProfs-CloudAdmins/aws-go-sdk-1758910904621465933",
-  "requiresAttributes": [
-    {
-      "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
-    },
-    {
-      "name": "ecs.capability.execution-role-awslogs"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.ecr-auth"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.task-iam-role"
-    },
-    {
-      "name": "ecs.capability.execution-role-ecr-pull"
-    },
-    {
-      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
-    },
-    {
-      "name": "ecs.capability.task-eni"
-    }
-  ],
-  "requiresCompatibilities": [
-    "FARGATE"
-  ],
-  "revision": 12,
-  "status": "ACTIVE",
-  "taskDefinitionArn": "arn:aws:ecs:eu-central-1:744158388766:task-definition/price-scraper:12",
-  "taskRoleArn": "arn:aws:iam::744158388766:role/price-scraper-ecs-task-role",
-  "volumes": [],
-  "tags": [
-    {
-      "key": "Environment",
-      "value": "dev"
-    },
-    {
-      "key": "Application",
-      "value": "price-scraper"
-    },
-    {
-      "key": "Name",
-      "value": "price-scraper-task-definition"
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8080/ || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 120
+      }
     }
   ]
 }
