@@ -19,7 +19,7 @@ env:
   ECR_REPOSITORY: price-scraper
   ECS_SERVICE: price-scraper-service
   ECS_CLUSTER: price-scraper-cluster
-  ECS_TASK_DEFINITION: price-scraper
+  ECS_TASK_DEFINITION: price-scraper.json
   CONTAINER_NAME: price-scraper
 
 jobs:
