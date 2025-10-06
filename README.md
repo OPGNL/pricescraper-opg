@@ -56,7 +56,7 @@ A web application for scraping and comparing prices from various plastic/plexi s
      ```bash
      # On macOS:
      python3 --version  # Should show Python 3.11.9
-     
+
      # On Windows:
      python --version  # Should show Python 3.11.9
      ```
@@ -86,6 +86,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 If you get build errors on macOS, make sure you've installed the Xcode Command Line Tools as described in the prerequisites.
+
 
 5. Install Playwright browsers:
 ```bash
@@ -184,4 +185,4 @@ alembic upgrade head
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
