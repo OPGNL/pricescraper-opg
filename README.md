@@ -87,7 +87,6 @@ pip install -r requirements.txt
 ```
 If you get build errors on macOS, make sure you've installed the Xcode Command Line Tools as described in the prerequisites.
 
-
 5. Install Playwright browsers:
 ```bash
 playwright install
