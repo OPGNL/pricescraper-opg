@@ -1,38 +1,102 @@
 {
-  "cpu": 0,
-  "environment": [
-    {
-      "name": "DB_HOST",
-      "value": "price-scraper-postgres.czo0iqkoazz7.eu-central-1.rds.amazonaws.com"
-    },
-    {
-      "name": "DB_PORT",
-      "value": "5432"
-    },
-    {
-      "name": "DB_NAME",
-      "value": "price_scraper"
-    }
-  ],
-  "essential": true,
-  "image": "744158388766.dkr.ecr.eu-central-1.amazonaws.com/price-scraper:latest",
-  "logConfiguration": {
-    "logDriver": "awslogs",
-    "options": {
-      "awslogs-group": "/ecs/price-scraper",
-      "awslogs-region": "eu-central-1",
-      "awslogs-stream-prefix": "ecs"
-    }
-  },
-  "mountPoints": [],
-  "name": "price-scraper",
-  "portMappings": [
-    {
-      "containerPort": 8080,
-      "hostPort": 8080,
-      "protocol": "tcp"
-    }
-  ],
-  "systemControls": [],
-  "volumesFrom": []
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "containerDefinitions": [
+        {
+            "cpu": 0,
+            "environment": [
+                {
+                    "name": "DB_HOST",
+                    "value": "price-scraper-postgres.czo0iqkoazz7.eu-central-1.rds.amazonaws.com"
+                },
+                {
+                    "name": "DB_PORT",
+                    "value": "5432"
+                },
+                {
+                    "name": "DB_NAME",
+                    "value": "price_scraper"
+                }
+            ],
+            "essential": true,
+            "image": "744158388766.dkr.ecr.eu-central-1.amazonaws.com/price-scraper:latest",
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/price-scraper",
+                    "awslogs-region": "eu-central-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "mountPoints": [],
+            "name": "price-scraper",
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "systemControls": [],
+            "volumesFrom": []
+        }
+    ],
+    "cpu": "256",
+    "executionRoleArn": "arn:aws:iam::744158388766:role/price-scraper-ecs-task-execution-role",
+    "family": "price-scraper",
+    "memory": "512",
+    "networkMode": "awsvpc",
+    "placementConstraints": [],
+    "registeredAt": "2025-09-26T18:23:06.989Z",
+    "registeredBy": "arn:aws:sts::744158388766:assumed-role/LinProfs-CloudAdmins/aws-go-sdk-1758910904621465933",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "revision": 12,
+    "status": "ACTIVE",
+    "taskDefinitionArn": "arn:aws:ecs:eu-central-1:744158388766:task-definition/price-scraper:12",
+    "taskRoleArn": "arn:aws:iam::744158388766:role/price-scraper-ecs-task-role",
+    "volumes": [],
+    "tags": [
+        {
+            "key": "Environment",
+            "value": "dev"
+        },
+        {
+            "key": "Application",
+            "value": "price-scraper"
+        },
+        {
+            "key": "Name",
+            "value": "price-scraper-task-definition"
+        }
+    ]
 }
