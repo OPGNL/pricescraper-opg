@@ -169,18 +169,31 @@ class PriceCalculator:
             self._update_status(f"Starting price calculation for {domain}", "config", debug_info)
 
             async with async_playwright() as p:
-                # Launch browser with anti-detection settings
+                # Get browser config from domain config
+                disable_canvas_webgl = config.get('disable_canvas_webgl', False)  # Default to False for anti-detection
+
+                # Build args conditionally
+                args = [
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-application-cache',
+                    '--disable-cache',
+                    '--disable-offline-load-stale-cache',
+                    '--disk-cache-size=0',
+                    f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                ]
+                if disable_canvas_webgl:
+                    args.extend([
+                        '--disable-accelerated-2d-canvas',
+                        '--disable-webgl',
+                        '--disable-gpu',
+                        '--disable-software-rasterizer',
+                    ])
+
+                # Launch browser with conditional args
                 browser = await p.chromium.launch(
                     headless=HEADLESS,
-                    args=[
-                        '--disable-blink-features=AutomationControlled',
-                        '--disable-features=IsolateOrigins,site-per-process',
-                        '--disable-application-cache',
-                        '--disable-cache',
-                        '--disable-offline-load-stale-cache',
-                        '--disk-cache-size=0',
-                        f'--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                    ]
+                    args=args
                 )
 
                 # Create context with more realistic browser settings and disabled storage
@@ -252,7 +265,11 @@ class PriceCalculator:
                             await asyncio.sleep(3)
                             self._update_status("Page load timeout, proceeding anyway", "loaded")
 
-                    for step in steps:
+                    current_category = category  # Track current category for config switching
+                    step_index = 0
+
+                    while step_index < len(steps):
+                        step = steps[step_index]
                         try:
                             # Add random mouse movements before each action
                             if step['type'] in ['click', 'input', 'select']:
@@ -263,6 +280,35 @@ class PriceCalculator:
                                 )
 
                             result = await self._process_step(page, step, dimensions)
+
+                            # Handle decide_config step result
+                            if step['type'] == 'decide_config' and result is not None:
+                                if result.get('switch_config', False):
+                                    new_config = result.get('new_config')
+                                    if new_config and new_config in config['categories']:
+                                        self._update_status(
+                                            f"Switching from '{current_category}' to '{new_config}' configuration",
+                                            "config_switch",
+                                            {
+                                                "from_config": current_category,
+                                                "to_config": new_config,
+                                                "reason": "decide_config_triggered"
+                                            }
+                                        )
+                                        # Switch to new configuration
+                                        current_category = new_config
+                                        steps = config['categories'][current_category]['steps']
+                                        # Continue from the next step in the new configuration
+                                        step_index = 0
+                                        continue
+                                    else:
+                                        self._update_status(
+                                            f"Fallback configuration '{new_config}' not found, continuing with current",
+                                            "warn"
+                                        )
+                                # If not switching, just continue with next step
+                                step_index += 1
+                                continue
 
                             if step['type'] == 'read_price' and result is not None:
                                 # Convert price based on VAT
@@ -309,9 +355,12 @@ class PriceCalculator:
                                         }
                                     )
                                     return 0.00, 0.00
+                                step_index += 1
                                 continue
                             else:
                                 raise step_error
+
+                        step_index += 1
 
                 except Exception as e:
                     self._update_status(f"Error: {str(e)}", "error")
@@ -390,6 +439,47 @@ class PriceCalculator:
                 self._update_status(f"Could not highlight element: {str(e)}", "warn")
                 continue
 
+    def _substitute_dynamic_selector(self, selector: str, dimensions: dict, step: dict, operation_type: str = "operation") -> str:
+        """
+        Handle dynamic selector substitution with dimension variables.
+
+        Args:
+            selector: The selector string that may contain variables like {thickness}
+            dimensions: Dictionary containing dimension values
+            step: The step configuration containing unit information
+            operation_type: Type of operation for logging (e.g., "click", "select")
+
+        Returns:
+            Modified selector with variables substituted
+        """
+        if not dimensions or '{' not in selector or '}' not in selector:
+            return selector
+
+        original_selector = selector
+        for key in ['thickness', 'width', 'length', 'quantity']:
+            if f"{{{key}}}" in selector:
+                if key in dimensions:
+                    # Convert value and substitute
+                    value = dimensions[key]
+                    unit = step.get('unit', 'mm')
+                    converted_value = self._convert_value(value, unit)
+
+                    # Convert to integer if it's a whole number
+                    if isinstance(converted_value, float) and converted_value.is_integer():
+                        converted_value = int(converted_value)
+
+                    selector = selector.replace(f"{{{key}}}", str(converted_value))
+                    self._update_status(
+                        f"Dynamic selector: replaced {{{key}}} with {converted_value}",
+                        operation_type,
+                        {"original_selector": original_selector, "final_selector": selector}
+                    )
+                else:
+                    self._update_status(f"Dimension {key} not found for dynamic selector", "error")
+                    raise ValueError(f"Dimension {key} not found in dimensions dict")
+
+        return selector
+
     async def _handle_select(self, page, step, dimensions):
         """Handle a select/input step"""
         # Controleer eerst of 'value' aanwezig is in de step dictionary
@@ -422,6 +512,9 @@ class PriceCalculator:
 
         value = step['value']
         selector = step['selector']
+
+        # Support dynamic selector creation with variable substitution
+        selector = self._substitute_dynamic_selector(selector, dimensions, step, "select")
 
         # Handle index-based selection
         if isinstance(value, str) and value.startswith('index:'):
@@ -1006,29 +1099,7 @@ class PriceCalculator:
         max_retries = 2
 
         # Support dynamic selector creation with variable substitution
-        if dimensions and '{' in selector and '}' in selector:
-            original_selector = selector
-            for key in ['thickness', 'width', 'length', 'quantity']:
-                if f"{{{key}}}" in selector:
-                    if key in dimensions:
-                        # Convert value and substitute
-                        value = dimensions[key]
-                        unit = step.get('unit', 'mm')
-                        converted_value = self._convert_value(value, unit)
-
-                        # Convert to integer if it's a whole number
-                        if isinstance(converted_value, float) and converted_value.is_integer():
-                            converted_value = int(converted_value)
-
-                        selector = selector.replace(f"{{{key}}}", str(converted_value))
-                        self._update_status(
-                            f"Dynamic selector: replaced {{{key}}} with {converted_value}",
-                            "click",
-                            {"original_selector": original_selector, "final_selector": selector}
-                        )
-                    else:
-                        self._update_status(f"Dimension {key} not found for dynamic selector", "error")
-                        raise ValueError(f"Dimension {key} not found in dimensions dict")
+        selector = self._substitute_dynamic_selector(selector, dimensions, step, "click")
 
         # Add more descriptive messages for specific actions
         if 'figure' in selector.lower():
@@ -1206,56 +1277,60 @@ class PriceCalculator:
     def _extract_price(self, price_text: str) -> float:
         """Extract numeric price from text, handling different thousand/decimal separators."""
         try:
-            # Remove currency symbols (€, $, etc.) and leading/trailing whitespace
-            cleaned = re.sub(r'[€$\s]+', '', price_text).strip()
+            # Log the original price text for debugging
+            logging.info(f"Extracting price from: '{price_text}'")
 
-            # Check if the string contains likely separators
-            has_dot = '.' in cleaned
-            has_comma = ',' in cleaned
+            # First, try to find a number pattern with optional currency symbols
+            # This regex looks for: optional currency, number with optional separators, optional currency
+            price_pattern = r'[€$£¥]?\s*(\d{1,3}(?:[,.]\d{3})*(?:[,.]\d{1,2})?)\s*[€$£¥]?'
 
-            # If both or neither are present, or only one type is present multiple times, we need careful parsing
+            match = re.search(price_pattern, price_text)
+            if not match:
+                # Fallback: look for any number in the text
+                number_pattern = r'(\d+(?:[,.]\d+)?)'
+                match = re.search(number_pattern, price_text)
+                if not match:
+                    logging.warning(f"No numeric value found in price text: '{price_text}'")
+                    return 0.0
+
+            number_str = match.group(1)
+            logging.info(f"Extracted number string: '{number_str}'")
+
+            # Now handle the decimal/thousands separator logic
+            has_dot = '.' in number_str
+            has_comma = ',' in number_str
+
             if has_dot and has_comma:
-                # Assume the last separator is the decimal one
-                last_dot_pos = cleaned.rfind('.')
-                last_comma_pos = cleaned.rfind(',')
+                # Both present - determine which is decimal separator
+                last_dot_pos = number_str.rfind('.')
+                last_comma_pos = number_str.rfind(',')
 
                 if last_comma_pos > last_dot_pos:
-                    # Comma is likely decimal separator (e.g., 1.234,56)
-                    # Remove all dots (thousands separators)
-                    cleaned = cleaned.replace('.', '')
-                    # Replace the comma (decimal separator) with a dot
-                    cleaned = cleaned.replace(',', '.')
+                    # Comma is decimal separator (e.g., 1.234,56)
+                    number_str = number_str.replace('.', '').replace(',', '.')
                 else:
-                    # Dot is likely decimal separator (e.g., 1,234.56)
-                    # Remove all commas (thousands separators)
-                    cleaned = cleaned.replace(',', '')
-                    # The dot is already the decimal separator
-            elif has_comma:
-                # Only commas present. Assume last comma is decimal if multiple exist (e.g. 1,234,56 -> 1234.56)
-                if cleaned.count(',') > 1:
-                     # Remove all but the last comma
-                     parts = cleaned.split(',')
-                     cleaned = "".join(parts[:-1]) + "." + parts[-1]
-                else:
-                    # Single comma is likely decimal
-                    cleaned = cleaned.replace(',', '.')
-            # elif has_dot: -> If only dots, Python's float() handles it if it's a valid float string
-            #                 No cleaning needed beyond removing currency/spaces
+                    # Dot is decimal separator (e.g., 1,234.56)
+                    number_str = number_str.replace(',', '')
+            elif has_comma and not has_dot:
+                # Only comma - check if it's likely decimal or thousands separator
+                comma_pos = number_str.rfind(',')
+                digits_after_comma = len(number_str) - comma_pos - 1
 
-            # After cleaning, try to convert to float
-            # Use regex to find the number pattern again to be sure
-            match = re.search(r'[-+]?\d+(\.\d+)?', cleaned)
-            if match:
-                numeric_string = match.group()
-                return float(numeric_string)
-            else:
-                 logging.warning(f"Could not extract valid number from cleaned string: '{cleaned}' (original: '{price_text}')")
+                if digits_after_comma <= 2:
+                    # Likely decimal separator (e.g., 29,81)
+                    number_str = number_str.replace(',', '.')
+                else:
+                    # Likely thousands separator (e.g., 1,234)
+                    number_str = number_str.replace(',', '')
+            # If only dot or no separators, leave as is
+
+            result = float(number_str)
+            logging.info(f"Successfully extracted price: {result}")
+            return result
 
         except Exception as e:
             logging.error(f"Error extracting price from '{price_text}': {str(e)}")
-
-        # Return 0.0 if any step failed
-        return 0.0
+            return 0.0
 
     async def _fill_select_field(self, page: Page, selector: str, value: float) -> None:
         logging.info(f"\nZoeken naar thickness veld met selector: {selector}")
@@ -1671,6 +1746,9 @@ class PriceCalculator:
                 await self._handle_reload(page, step)
             elif step_type == 'captcha':
                 await self._handle_captcha(page, step)
+            elif step_type == 'decide_config':
+                result = await self._handle_decide_config(page, step)
+                return result
             else:
                 raise ValueError(f"Unknown step type: {step_type}")
 
@@ -1714,6 +1792,7 @@ class PriceCalculator:
                     site_key = await page.evaluate("""() => {
                         for (const element of document.getElementsByTagName('div')) {
                             if (element.getAttribute('data-sitekey')) {
+
                                 return element.getAttribute('data-sitekey');
                             }
                         }
@@ -1773,6 +1852,52 @@ class PriceCalculator:
                 return
             self._update_status(f"Captcha handling failed: {str(e)}", "error")
             raise
+
+    async def _handle_decide_config(self, page, step):
+        """Handle decide_config step to dynamically switch configurations based on page content"""
+        selector = step.get('selector')
+        timeout = step.get('timeout', 10)  # Default 10 seconds timeout
+        fallback_config = step.get('fallback_config', 'square_meter_price_2')
+
+        if not selector:
+            raise ValueError("Selector is required for decide_config step")
+
+        self._update_status(
+            f"Checking if element '{selector}' is visible to decide configuration",
+            "decide_config",
+            {"selector": selector, "timeout": timeout, "fallback_config": fallback_config}
+        )
+
+        try:
+            # Wait for the selector to be visible within the timeout
+            element = await page.wait_for_selector(selector, state="visible", timeout=timeout * 1000)
+
+            if element:
+                self._update_status(
+                    f"Element '{selector}' found - continuing with current configuration",
+                    "decide_config",
+                    {"selector": selector, "decision": "continue_current_config", "status": "success"}
+                )
+                return {"switch_config": False, "current_config": True}
+
+        except Exception as e:
+            # Timeout or element not found - switch to fallback configuration
+            self._update_status(
+                f"Element '{selector}' not found within {timeout}s - switching to '{fallback_config}' configuration",
+                "decide_config",
+                {
+                    "selector": selector,
+                    "timeout": timeout,
+                    "fallback_config": fallback_config,
+                    "decision": "switch_config",
+                    "reason": str(e),
+                    "status": "config_switched"
+                }
+            )
+            return {"switch_config": True, "new_config": fallback_config}
+
+        # Fallback case (should not reach here, but for safety)
+        return {"switch_config": True, "new_config": fallback_config}
 
     def _format_price(self, amount: float, currency_format: str, decimal_separator: str = ',', thousands_separator: str = '.') -> str:
         """Format a price according to the specified format and separators"""

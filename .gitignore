@@ -1,37 +1,78 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Environment variables
+# Virtual Environment
+venv/
+env/
+ENV/
 .env
+.venv
+env.bak/
+venv.bak/
+
+# IDE
+.idea/
+.vscode/
+.zed/
+*.swp
+*.swo
+.DS_Store
+
+# FastAPI specific
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+
+# Logs
+*.log
+logs/
+log/
+
+# Local development settings
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Build outputs
-dist/
-build/
-*.tgz
-*.tar.gz
+# Database
+*.db
+*.sqlite3
+*.sqlite
 
-# IDE and editor files
-.vscode/
-.idea/
+# Temporary files
+*.tmp
+*.bak
 *.swp
-*.swo
 *~
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# SSL certificates (development only)
+certs/
+*.key
+*.crt
+*.pem
+
+node_modules/
 
 # Logs
 logs/
@@ -99,7 +140,10 @@ __pycache__/
 *.pyd
 *.pdb
 
-static/
+static/images
+static/js
+static/css/diff2html.min.css
+static/css/output.css
 
 debug.log
 
