@@ -107,7 +107,7 @@ The scraping engine uses a step-based configuration system. Common step types:
 - `static/js/`: Frontend JavaScript for configuration management
 
 ## Environment & Dependencies
-- **Python 3.11.9** (specific version required)
+- **Python 3.13.11** (specific version required)
 - **PostgreSQL** for production, SQLite for development
 - **Playwright** browsers (install with `playwright install`)
 - **Node.js** for Tailwind CSS compilation

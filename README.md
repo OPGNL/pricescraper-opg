@@ -47,22 +47,22 @@ A web application for scraping and comparing prices from various plastic/plexi s
 
 ### Setup Steps
 
-1. Install Python 3.11.9:
-   - Download Python 3.11.9 from [python.org](https://www.python.org/downloads/release/python-3119/)
+1. Install Python 3.13.11:
+   - Download Python 3.13.11 from [python.org](https://www.python.org/downloads/release/python-3119/)
      - For macOS: Download and run "macOS 64-bit universal2 installer"
      - For Windows: Download and run "Windows installer (64-bit)"
    - During installation, make sure to check "Add Python to PATH"
    - Verify installation by opening a terminal and running:
      ```bash
      # On macOS:
-     python3 --version  # Should show Python 3.11.9
+     python3 --version  # Should show Python 3.13.11
 
      # On Windows:
-     python --version  # Should show Python 3.11.9
+     python --version  # Should show Python 3.13.11
      ```
      If you get a "command not found" error on macOS, try using `python3` instead of `python`.
 
-   Note: This application requires Python 3.11.9 specifically. Other versions may cause compatibility issues.
+   Note: This application requires Python 3.13.11 specifically. Other versions may cause compatibility issues.
 
 2. Clone the repository:
 ```bash

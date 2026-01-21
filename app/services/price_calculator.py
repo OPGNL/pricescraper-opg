@@ -184,7 +184,6 @@ class PriceCalculator:
 
                 # Launch browser with conditional args
                 browser = await p.chromium.launch(
-                    channel="chrome",
                     headless=HEADLESS,
                     args=args
                 )
@@ -1475,7 +1474,7 @@ class PriceCalculator:
         try:
             async with async_playwright() as p:
                 # Launch browser in non-headless mode
-                browser = await p.chromium.launch(channel="chrome", headless=HEADLESS)
+                browser = await p.chromium.launch(headless=HEADLESS)
                 # Create page with full HD viewport
                 page = await browser.new_page(viewport={'width': 1920, 'height': 1080})
                 await page.goto(url)
