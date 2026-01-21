@@ -21,7 +21,7 @@ class MaterialScraper:
     async def analyze_form_fields(self, url: str) -> Dict[str, Any]:
         """Analyze form fields on the page using domain configuration from database"""
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=HEADLESS)
+            browser = await p.chromium.launch(channel="chrome", headless=HEADLESS)
             page = await browser.new_page()
             await page.goto(url)
 

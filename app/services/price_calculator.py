@@ -14,6 +14,7 @@ import random
 import string
 from twocaptcha import TwoCaptcha
 from app.core.config import Settings
+from app.constants.selectors import LENGTH_SELECTORS, WIDTH_SELECTORS, THICKNESS_SELECTORS, QUANTITY_SELECTORS
 
 class PriceCalculator:
     """Calculate prices based on dimensions for different domains"""
@@ -183,6 +184,7 @@ class PriceCalculator:
 
                 # Launch browser with conditional args
                 browser = await p.chromium.launch(
+                    channel="chrome",
                     headless=HEADLESS,
                     args=args
                 )
@@ -739,22 +741,24 @@ class PriceCalculator:
         final_value_str = ""
         field_type = None
 
+        selector_re = set(re.split(r'[\W|\_]+', selector.lower()))
+
         # Prioriteit 1: Gebruik waarde uit dimensions als het een dimensieveld is
         if dimensions:
             # Check of de selector overeenkomt met een bekend dimensietype
-            if 'length' in selector.lower() or 'lengte' in selector.lower() or selector.endswith('_length'):
+            if selector_re.intersection(LENGTH_SELECTORS):
                 field_type = 'length'
                 if 'length' in dimensions:
                     value = dimensions['length']
-            elif 'width' in selector.lower() or 'breedte' in selector.lower() or selector.endswith('_width'):
+            elif selector_re.intersection(WIDTH_SELECTORS):
                 field_type = 'width'
                 if 'width' in dimensions:
                     value = dimensions['width']
-            elif 'thickness' in selector.lower() or 'dikte' in selector.lower() or selector.endswith('_thickness'):
+            elif selector_re.intersection(THICKNESS_SELECTORS):
                 field_type = 'thickness'
                 if 'thickness' in dimensions:
                     value = dimensions['thickness']
-            elif 'qty' in selector.lower() or 'quantity' in selector.lower() or selector == '.qty':
+            elif selector_re.intersection(QUANTITY_SELECTORS):
                 field_type = 'quantity'
                 if 'quantity' in dimensions:
                     value = dimensions['quantity']
@@ -975,11 +979,12 @@ class PriceCalculator:
 
                 if clear_first:
                     # Leeg het veld op verschillende manieren
-                    await element.evaluate('(el) => { el.value = ""; }')
+                    await element.fill('')
+                    # await element.evaluate('(el) => { el.value = ""; }')
 
-                    # Selecteer alle tekst en verwijder
-                    await element.click(click_count=3)  # Triple click selecteert alle tekst
-                    await element.press('Backspace')
+                    # # Selecteer alle tekst en verwijder
+                    # await element.click(click_count=3)  # Triple click selecteert alle tekst
+                    # await element.press('Backspace')
 
                 # Type de NIEUWE definitieve waarde
                 try:
@@ -1470,7 +1475,7 @@ class PriceCalculator:
         try:
             async with async_playwright() as p:
                 # Launch browser in non-headless mode
-                browser = await p.chromium.launch(headless=HEADLESS)
+                browser = await p.chromium.launch(channel="chrome", headless=HEADLESS)
                 # Create page with full HD viewport
                 page = await browser.new_page(viewport={'width': 1920, 'height': 1080})
                 await page.goto(url)

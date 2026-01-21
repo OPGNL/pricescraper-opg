@@ -1,35 +1,34 @@
 import os
-from sqlalchemy import Column, String, create_engine
+
+from sqlalchemy import Column, String
 from sqlalchemy.ext.declarative import declarative_base
 
 # Environment settings
-ENV = os.getenv('ENV', 'production')  # 'development' or 'production'
-IS_PRODUCTION = ENV == 'production'
+ENV = os.getenv("ENV", "development")  # 'development' or 'production'
+IS_PRODUCTION = ENV == "production"
 
 # Browser settings
 HEADLESS = IS_PRODUCTION  # True in production, False in development
-# HEADLESS = True
 
 # Database settings
-def get_database_url():
-    """Get database URL from environment variables with fallback"""
-    database_url = os.getenv('DATABASE_URL')
+def get_database_url() -> str:
+    """Get database URL from environment variables with fallback."""
+    database_url = os.getenv("DATABASE_URL")
     if database_url:
         return database_url
 
     # Fallback logic
-    use_postgres_locally = os.getenv('USE_POSTGRES_LOCALLY', 'true').lower() == 'true'
+    use_postgres_locally = os.getenv("USE_POSTGRES_LOCALLY", "false").lower() == "true"
     if use_postgres_locally:
-        return os.getenv('LOCAL_POSTGRES_URL', "postgresql://postgres:password@localhost:5432/competitor_price_watcher")
-    else:
-        return os.getenv('LOCAL_SQLITE_URL', "sqlite:///./competitor_price_watcher.db")
+        return os.getenv("LOCAL_POSTGRES_URL", "postgresql://postgres:password@localhost:5432/competitor_price_watcher")
+    return os.getenv("LOCAL_SQLITE_URL", "sqlite:///./competitor_price_watcher.db")
 
 LOCAL_DATABASE_URL = get_database_url()
 
 Base = declarative_base()
 
 class Settings(Base):
-    __tablename__ = 'settings'
+    __tablename__ = "settings"
 
     key = Column(String, primary_key=True)
     value = Column(String)

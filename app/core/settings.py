@@ -1,11 +1,12 @@
-from sqlalchemy import Column, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
+
+from sqlalchemy import Column, DateTime, String
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
 class Settings(Base):
-    __tablename__ = 'settings'
+    __tablename__ = "settings"
 
     key = Column(String, primary_key=True)
     value = Column(String)
@@ -28,4 +29,4 @@ class Settings(Base):
         else:
             setting = cls(key=key, value=value)
             session.add(setting)
-        session.commit() 
+        session.commit()

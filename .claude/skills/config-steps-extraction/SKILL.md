@@ -106,13 +106,6 @@ Use these step types based on the page requirements:
 }
 ```
 
-#### Blur Steps (trigger calculations)
-```json
-{
-  "type": "blur"
-}
-```
-
 #### Read Price Steps
 ```json
 {
@@ -122,6 +115,52 @@ Use these step types based on the page requirements:
   "calculation": "price / {quantity}",  // optional: for per-unit calculations
   "continue_on_error": false
 }
+```
+
+#### Blur Steps (trigger calculations)
+```json
+{
+  "type": "blur"
+}
+```
+
+#### Modify Steps (custom JavaScript execution)
+```json
+{
+  "type": "modify",
+  "selector": "#custom-element",
+  "script": "element.value = '100'; element.dispatchEvent(new Event('input', { bubbles: true }));",
+  "description": "Set custom value and trigger input event",
+  "continue_on_error": false
+}
+```
+
+**Use cases for `modify` steps:**
+- Manipulate DOM elements that can't be controlled through standard `input`/`click` steps
+- Trigger custom events or functions (e.g., `dispatchEvent`, custom framework handlers)
+- Set properties or attributes directly on elements
+- Bypass UI restrictions or validations for testing
+- Execute site-specific JavaScript to trigger calculations or workflows
+
+**Available in script context:**
+- `element` - The DOM element matched by the selector
+- `{width}`, `{length}`, `{thickness}`, `{quantity}` - Dimension variables (can be used in script strings)
+
+**Common patterns:**
+```javascript
+// Set value and trigger change event
+element.value = '{width}'; element.dispatchEvent(new Event('change', { bubbles: true }));
+
+// Click element programmatically
+element.click();
+
+// Remove disabled attribute
+element.removeAttribute('disabled');
+
+// Trigger custom framework event (e.g., React)
+const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+nativeInputValueSetter.call(element, '{length}');
+element.dispatchEvent(new Event('input', { bubbles: true }));
 ```
 
 ### 5. Common Workflow Patterns
@@ -414,6 +453,7 @@ After creating the configuration, note any potential issues:
 | `wait` | Pause execution | `duration` (short/default/long/longest) |
 | `read_price` | Extract price | `selector`, `includes_vat`, `calculation` |
 | `blur` | Trigger calculations | None (triggers on last focused element) |
+| `modify` | Execute custom JavaScript | `selector`, `script`, `description`, `continue_on_error` |
 | `navigate` | Go to URL | `url`, `wait_for_load` |
 | `decide_config` | Conditional routing | `selector`, `fallback_config`, `timeout` |
 
