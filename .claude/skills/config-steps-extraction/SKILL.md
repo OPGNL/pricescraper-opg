@@ -12,8 +12,19 @@ This skill helps you create scraper configurations for new domain websites. It a
 When a user provides a product URL and asks to create a scraper configuration, follow these steps:
 
 ### 1. Analyze the Product Page
-- Use the `WebFetch` tool to visit the product URL
-- Identify and document the CSS selectors for:
+
+**Primary method**: Use the `WebFetch` tool to visit the product URL and extract page content.
+
+**Fallback method (if WebFetch fails)**: If `WebFetch` fails to fetch the page (e.g., due to anti-bot protections, JavaScript-rendered content, or network restrictions), use Chrome browser automation tools as a fallback:
+1. Call `mcp__claude-in-chrome__tabs_context_mcp` to get available tabs
+2. Create a new tab with `mcp__claude-in-chrome__tabs_create_mcp`
+3. Navigate to the product URL with `mcp__claude-in-chrome__navigate`
+4. Use `mcp__claude-in-chrome__read_page` to get the page's accessibility tree and identify interactive elements (inputs, selects, buttons)
+5. Use `mcp__claude-in-chrome__find` to locate specific elements by purpose (e.g., "width input", "price display", "add to cart button")
+6. Use `mcp__claude-in-chrome__get_page_text` to extract text content from the page
+7. Use `mcp__claude-in-chrome__computer` with `action: "screenshot"` to visually inspect the page layout if needed
+
+Using either method, identify and document the CSS selectors for:
   - **Width input field** (Largeur, Width, Breite, etc.)
   - **Height/Length input field** (Hauteur, Length, Länge, Höhe, etc.)
   - **Thickness selector** (optional - dropdown or radio buttons)
@@ -220,7 +231,7 @@ After creating the configuration, note any potential issues:
 **Your Response:**
 
 1. First, analyze the page:
-   - Use WebFetch to identify selectors
+   - Use WebFetch to identify selectors (fall back to Chrome browser automation if WebFetch fails)
    - Document the workflow
 
 2. Then create the configuration:
